@@ -7,11 +7,11 @@ const Navigator = () => {
   const { pathname } = useLocation();
   useEffect(() => {
     if (pathname === '/' || pathname === '/dashboard') {
-      if (isLoggedIn) {
-        navigate('/dashboard/home');
-      } else {
-        navigate('/login');
-      }
+      // if (isLoggedIn) {
+      navigate('/dashboard/home');
+      // } else {
+      //   navigate('/login');
+      // }
     }
   }, [isLoggedIn, navigate, pathname]);
 
