@@ -11,7 +11,7 @@ const NotFoundPage = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="w-full h-full  flex flex-col items-center justify-center bg-white text-gray-800 dark:bg-[#1f2937] dark:text-white transition-colors duration-300 px-4 text-center"
+      className="w-full h-full  flex flex-col items-center justify-center bg-white text-gray-800 dark:bg-[#000000] dark:text-white transition-colors duration-300 px-4 text-center"
     >
       <motion.h1
         className="text-6xl font-bold mb-2 text-[#5cccb1]"

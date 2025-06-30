@@ -3,6 +3,8 @@ import { AnimatePresence } from 'framer-motion';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import SplashScreen from './components/SplashScreen';
 import { routes } from './Router';
+import { useApp } from './Providers/Configuration';
+import { ConfigProvider, theme } from 'antd';
 
 const App = () => {
   const [showSplash, setShowSplash] = useState(false);
@@ -13,13 +15,25 @@ const App = () => {
       setShowSplash(true);
     }
   }, []);
-
+  const { theme: darkOrLight } = useApp();
   return (
     <>
       <AnimatePresence mode="sync">
         {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
       </AnimatePresence>
-      {!showSplash && <RouterProvider router={createBrowserRouter(routes)} />}
+      <ConfigProvider
+        theme={{
+          algorithm:
+            darkOrLight === 'dark'
+              ? theme.darkAlgorithm
+              : theme.defaultAlgorithm,
+          token: {
+            colorPrimary: '#6bd2bc'
+          }
+        }}
+      >
+        {!showSplash && <RouterProvider router={createBrowserRouter(routes)} />}
+      </ConfigProvider>
     </>
   );
 };

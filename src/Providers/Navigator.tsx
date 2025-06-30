@@ -6,9 +6,9 @@ const Navigator = () => {
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
   const { pathname } = useLocation();
   useEffect(() => {
-    if (pathname === '/') {
+    if (pathname === '/' || pathname === '/dashboard') {
       if (isLoggedIn) {
-        navigate('/dashboard');
+        navigate('/dashboard/home');
       } else {
         navigate('/login');
       }
