@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import {
   Users,
   UserPlus,
@@ -155,8 +153,10 @@ const generateMockWorkers = (): WorkerDto[] => [
 ];
 
 export default function WorkersPage() {
-  const [workers, setWorkers] = useState<WorkerDto[]>([]);
-  const [filteredWorkers, setFilteredWorkers] = useState<WorkerDto[]>([]);
+  const [workers, setWorkers] = useState<WorkerDto[]>(generateMockWorkers());
+  const [filteredWorkers, setFilteredWorkers] = useState<WorkerDto[]>(
+    generateMockWorkers()
+  );
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState<WorkerDto | null>(null);
@@ -164,12 +164,6 @@ export default function WorkersPage() {
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [form] = Form.useForm();
-
-  useEffect(() => {
-    const mockData = generateMockWorkers();
-    setWorkers(mockData);
-    setFilteredWorkers(mockData);
-  }, []);
 
   // Filter workers
   useEffect(() => {
@@ -390,14 +384,8 @@ export default function WorkersPage() {
 
   return (
     <div className="p-2 space-y-6 min-h-full">
-      {/* Header */}
-
       {/* Statistics */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      >
+      <div>
         <Row gutter={[24, 24]}>
           <Col xs={24} sm={6}>
             <Card className="bg-gradient-to-br from-[#6fe0c8] to-[#419380da] border-0 text-white">
@@ -480,14 +468,10 @@ export default function WorkersPage() {
             </Card>
           </Col>
         </Row>
-      </motion.div>
+      </div>
 
       {/* Filters */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
+      <div>
         <Card className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800">
           <Row gutter={[16, 16]} align="middle">
             <Col xs={24} sm={8}>
@@ -535,12 +519,8 @@ export default function WorkersPage() {
             </Col>
           </Row>
         </Card>
-      </motion.div>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-      >
+      </div>
+      <div>
         <Card
           className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
           title={
@@ -581,7 +561,7 @@ export default function WorkersPage() {
             size="middle"
           />
         </Card>
-      </motion.div>
+      </div>
 
       {/* Add Worker Modal */}
       <Modal

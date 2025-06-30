@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+
 import {
   Users,
   UserPlus,
@@ -305,8 +305,10 @@ const generateMockClients = (): ClientDto[] => [
 ];
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<ClientDto[]>([]);
-  const [filteredClients, setFilteredClients] = useState<ClientDto[]>([]);
+  const [clients, setClients] = useState<ClientDto[]>(generateMockClients());
+  const [filteredClients, setFilteredClients] = useState<ClientDto[]>(
+    generateMockClients()
+  );
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
   const [selectedClient, setSelectedClient] = useState<ClientDto | null>(null);
@@ -314,11 +316,6 @@ export default function ClientsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [form] = Form.useForm();
 
-  useEffect(() => {
-    const mockData = generateMockClients();
-    setClients(mockData);
-    setFilteredClients(mockData);
-  }, []);
 
   // Filter clients
   useEffect(() => {
@@ -632,11 +629,7 @@ export default function ClientsPage() {
   return (
     <div className="p-2 space-y-6 min-h-full">
       {/* Statistics */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      >
+      <div>
         <Row gutter={[24, 24]}>
           <Col xs={24} sm={6}>
             <Card className="bg-gradient-to-br from-[#6fe0c8] to-[#419380da] border-0  text-slate-600 dark:text-slate-400">
@@ -718,14 +711,10 @@ export default function ClientsPage() {
             </Card>
           </Col>
         </Row>
-      </motion.div>
+      </div>
 
       {/* Filters */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
+      <div>
         <Card className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800">
           <Row gutter={[16, 16]} align="middle">
             <Col xs={24} sm={8}>
@@ -760,14 +749,10 @@ export default function ClientsPage() {
             </Col>
           </Row>
         </Card>
-      </motion.div>
+      </div>
 
       {/* Clients Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-      >
+      <div>
         <Card
           className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
           title={
@@ -836,7 +821,7 @@ export default function ClientsPage() {
             size="middle"
           />
         </Card>
-      </motion.div>
+      </div>
 
       {/* Add Client Modal */}
       <Modal

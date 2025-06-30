@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+
 import { Home, Plus, Search, Eye, Edit, Phone, MapPin } from 'lucide-react';
 import {
   Card,
@@ -167,10 +166,10 @@ const generateMockApartments = (): ApartmentDetailDto[] => {
 };
 
 export default function ApartmentsPage() {
-  const [apartments, setApartments] = useState<ApartmentDetailDto[]>([]);
+  const [apartments] = useState<ApartmentDetailDto[]>(generateMockApartments());
   const [filteredApartments, setFilteredApartments] = useState<
     ApartmentDetailDto[]
-  >([]);
+  >(generateMockApartments());
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
   const [selectedApartment, setSelectedApartment] =
@@ -180,12 +179,6 @@ export default function ApartmentsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [roomsFilter, setRoomsFilter] = useState<string>('all');
   const [form] = Form.useForm();
-
-  useEffect(() => {
-    const mockData = generateMockApartments();
-    setApartments(mockData);
-    setFilteredApartments(mockData);
-  }, []);
 
   // Filter apartments
   useEffect(() => {
@@ -424,11 +417,7 @@ export default function ApartmentsPage() {
   return (
     <div className="p-2 space-y-6 min-h-full">
       {/* Statistics */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      >
+      <div>
         <Row gutter={[24, 24]}>
           <Col xs={24} sm={6}>
             <Card className="bg-gradient-to-br from-[#6fe0c8] to-[#419380da] border-0 text-white">
@@ -500,14 +489,10 @@ export default function ApartmentsPage() {
             </Card>
           </Col>
         </Row>
-      </motion.div>
+      </div>
 
       {/* Filters */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
+      <div>
         <Card className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800">
           <Row gutter={[16, 16]} align="middle">
             <Col xs={24} sm={6}>
@@ -571,14 +556,10 @@ export default function ApartmentsPage() {
             </Col>
           </Row>
         </Card>
-      </motion.div>
+      </div>
 
       {/* Quick Stats */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.25 }}
-      >
+      <div>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={8}>
             <Card size="small" className="text-center">
@@ -616,14 +597,10 @@ export default function ApartmentsPage() {
             </Card>
           </Col>
         </Row>
-      </motion.div>
+      </div>
 
       {/* Apartments Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-      >
+      <div>
         <Card
           className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
           title={
@@ -664,7 +641,7 @@ export default function ApartmentsPage() {
             size="middle"
           />
         </Card>
-      </motion.div>
+      </div>
 
       {/* Add Apartment Modal */}
       <Modal

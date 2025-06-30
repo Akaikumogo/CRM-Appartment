@@ -1,8 +1,6 @@
-'use client';
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+
 import {
   BarChart3,
   PieChartIcon as PieIcon,
@@ -140,20 +138,15 @@ const monthlyTrend = [
 ];
 
 export default function SalesIndicatorsPage() {
-  const [activeView, setActiveView] = useState<string>('charts');
-  const [allAppartments, setAllAppartments] = useState<roomDto[]>([]);
-  const [filteredData, setFilteredData] = useState<roomDto[]>([]);
-
-  useEffect(() => {
-    const mockData = [
-      ...generateMockRooms(42, 'block1'),
-      ...generateMockRooms(70, 'block2'),
-      ...generateMockRooms(48, 'block3'),
-      ...generateMockRooms(42, 'block4')
-    ];
-    setAllAppartments(mockData);
-    setFilteredData(mockData);
-  }, []);
+  const [activeView, setActiveView] = useState<string>('table');
+  const mockRooms = [
+    ...generateMockRooms(42, 'block1'),
+    ...generateMockRooms(70, 'block2'),
+    ...generateMockRooms(48, 'block3'),
+    ...generateMockRooms(42, 'block4')
+  ];
+  const [allAppartments] = useState<roomDto[]>(mockRooms);
+  const [filteredData, setFilteredData] = useState<roomDto[]>(mockRooms);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -301,11 +294,7 @@ export default function SalesIndicatorsPage() {
   return (
     <div className="p-2 space-y-6 min-h-full">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      >
+      <div>
         <Row gutter={[24, 24]}>
           <Col xs={24} sm={8}>
             <div className="bg-gradient-to-br p-4 rounded-md from-red-400 to-red-600 border-0 text-white">
@@ -350,18 +339,22 @@ export default function SalesIndicatorsPage() {
             </div>
           </Col>
         </Row>
-      </motion.div>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+      <div>
         <div className="flex items-center justify-between">
           <Segmented
             value={activeView}
             onChange={setActiveView}
             options={[
+              {
+                label: (
+                  <div className="flex items-center justify-center p-2">
+                    <TableIcon size={16} />
+                  </div>
+                ),
+                value: 'table'
+              },
               {
                 label: (
                   <div className="flex items-center justify-center p-2">
@@ -377,20 +370,12 @@ export default function SalesIndicatorsPage() {
                   </div>
                 ),
                 value: 'grid'
-              },
-              {
-                label: (
-                  <div className="flex items-center justify-center p-2">
-                    <TableIcon size={16} />
-                  </div>
-                ),
-                value: 'table'
               }
             ]}
             size="large"
           />
         </div>
-      </motion.div>
+      </div>
 
       {activeView === 'charts' ? (
         <>
@@ -398,11 +383,7 @@ export default function SalesIndicatorsPage() {
           <Row gutter={[24, 24]}>
             {/* Block Sales Chart */}
             <Col xs={24} lg={12}>
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
+              <div>
                 <Card
                   className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
                   title={
@@ -441,16 +422,12 @@ export default function SalesIndicatorsPage() {
                     </BarChart>
                   </ResponsiveContainer>
                 </Card>
-              </motion.div>
+              </div>
             </Col>
 
             {/* Status Distribution Pie Chart */}
             <Col xs={24} lg={12}>
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-              >
+              <div>
                 <Card
                   className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
                   title={
@@ -482,18 +459,14 @@ export default function SalesIndicatorsPage() {
                     </RechartsPieChart>
                   </ResponsiveContainer>
                 </Card>
-              </motion.div>
+              </div>
             </Col>
           </Row>
 
           <Row gutter={[24, 24]}>
             {/* Floor Analysis */}
             <Col xs={24} lg={16}>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-              >
+              <div>
                 <Card
                   className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
                   title={
@@ -541,16 +514,12 @@ export default function SalesIndicatorsPage() {
                     </AreaChart>
                   </ResponsiveContainer>
                 </Card>
-              </motion.div>
+              </div>
             </Col>
 
             {/* Block Completion Radial */}
             <Col xs={24} lg={8}>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.5 }}
-              >
+              <div>
                 <Card
                   className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
                   title={
@@ -564,13 +533,7 @@ export default function SalesIndicatorsPage() {
                 >
                   <Space direction="vertical" size="large" className="w-full">
                     {blockData.map((block, index) => (
-                      <motion.div
-                        key={block.name}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.1 }}
-                        className="space-y-2"
-                      >
+                      <div key={block.name + index} className="space-y-2">
                         <div className="flex justify-between items-center">
                           <Text className="font-medium text-slate-900 dark:text-white">
                             {block.name}
@@ -594,26 +557,22 @@ export default function SalesIndicatorsPage() {
                             '100%': statusColors.sold
                           }}
                           trailColor="#e2e8f0"
-                          strokeWidth={12}
+                          size={12}
                         />
                         <div className="flex justify-between text-xs text-slate-500">
                           <span>Sotilgan: {block.sold}</span>
                           <span>Jami: {block.total}</span>
                         </div>
-                      </motion.div>
+                      </div>
                     ))}
                   </Space>
                 </Card>
-              </motion.div>
+              </div>
             </Col>
           </Row>
 
           {/* Monthly Trend */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.6 }}
-          >
+          <div>
             <Card
               className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
               title={
@@ -669,23 +628,14 @@ export default function SalesIndicatorsPage() {
                 </LineChart>
               </ResponsiveContainer>
             </Card>
-          </motion.div>
+          </div>
         </>
       ) : activeView === 'grid' ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="flex items-center justify-center"
-        >
+        <div className="flex items-center justify-center">
           <RoomTable />
-        </motion.div>
+        </div>
       ) : (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
+        <div>
           <Card
             className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
             title={
@@ -721,7 +671,7 @@ export default function SalesIndicatorsPage() {
               className="custom-table"
             />
           </Card>
-        </motion.div>
+        </div>
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'motion/react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import SplashScreen from './components/SplashScreen';
 import { routes } from './Router';
@@ -20,20 +20,22 @@ const App = () => {
     <>
       <AnimatePresence mode="sync">
         {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+        <ConfigProvider
+          theme={{
+            algorithm:
+              darkOrLight === 'dark'
+                ? theme.darkAlgorithm
+                : theme.defaultAlgorithm,
+            token: {
+              colorPrimary: '#6bd2bc'
+            }
+          }}
+        >
+          {!showSplash && (
+            <RouterProvider router={createBrowserRouter(routes)} />
+          )}
+        </ConfigProvider>
       </AnimatePresence>
-      <ConfigProvider
-        theme={{
-          algorithm:
-            darkOrLight === 'dark'
-              ? theme.darkAlgorithm
-              : theme.defaultAlgorithm,
-          token: {
-            colorPrimary: '#6bd2bc'
-          }
-        }}
-      >
-        {!showSplash && <RouterProvider router={createBrowserRouter(routes)} />}
-      </ConfigProvider>
     </>
   );
 };

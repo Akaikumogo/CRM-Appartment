@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+
 import {
   Layers,
   Plus,
@@ -130,8 +129,10 @@ const generateMockFloors = (): FloorDetailDto[] => {
 };
 
 export default function FloorsPage() {
-  const [floors, setFloors] = useState<FloorDetailDto[]>([]);
-  const [filteredFloors, setFilteredFloors] = useState<FloorDetailDto[]>([]);
+  const [floors] = useState<FloorDetailDto[]>(generateMockFloors());
+  const [filteredFloors, setFilteredFloors] = useState<FloorDetailDto[]>(
+    generateMockFloors()
+  );
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
   const [selectedFloor, setSelectedFloor] = useState<FloorDetailDto | null>(
@@ -141,11 +142,11 @@ export default function FloorsPage() {
   const [blockFilter, setBlockFilter] = useState<string>('all');
   const [form] = Form.useForm();
 
-  useEffect(() => {
-    const mockData = generateMockFloors();
-    setFloors(mockData);
-    setFilteredFloors(mockData);
-  }, []);
+  // useEffect(() => {
+  //   const mockData = generateMockFloors();
+  //   setFloors(mockData);
+  //   setFilteredFloors(mockData);
+  // }, []);
 
   // Filter floors
   useEffect(() => {
@@ -397,11 +398,7 @@ export default function FloorsPage() {
   return (
     <div className="p-2 space-y-6 min-h-full">
       {/* Statistics */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      >
+      <div>
         <Row gutter={[24, 24]}>
           <Col xs={24} sm={6}>
             <Card className="bg-gradient-to-br from-[#6fe0c8] to-[#419380da] border-0 text-white">
@@ -480,14 +477,10 @@ export default function FloorsPage() {
             </Card>
           </Col>
         </Row>
-      </motion.div>
+      </div>
 
       {/* Filters */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
+      <div>
         <Card className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800">
           <Row gutter={[16, 16]} align="middle">
             <Col xs={24} sm={8}>
@@ -525,14 +518,10 @@ export default function FloorsPage() {
             </Col>
           </Row>
         </Card>
-      </motion.div>
+      </div>
 
       {/* Floors Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-      >
+      <div>
         <Card
           className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
           title={
@@ -606,7 +595,7 @@ export default function FloorsPage() {
             size="middle"
           />
         </Card>
-      </motion.div>
+      </div>
 
       {/* Add Floor Modal */}
       <Modal

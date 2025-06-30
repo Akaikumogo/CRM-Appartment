@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+
 import {
   Building2,
   Plus,
@@ -171,20 +171,16 @@ const generateMockBlocks = (): BlockDto[] => [
 ];
 
 export default function BlocksPage() {
-  const [blocks, setBlocks] = useState<BlockDto[]>([]);
-  const [filteredBlocks, setFilteredBlocks] = useState<BlockDto[]>([]);
+  const [blocks, setBlocks] = useState<BlockDto[]>(generateMockBlocks());
+  const [filteredBlocks, setFilteredBlocks] = useState<BlockDto[]>(
+    generateMockBlocks()
+  );
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState<BlockDto | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [form] = Form.useForm();
-
-  useEffect(() => {
-    const mockData = generateMockBlocks();
-    setBlocks(mockData);
-    setFilteredBlocks(mockData);
-  }, []);
 
   // Filter blocks
   useEffect(() => {
@@ -418,11 +414,7 @@ export default function BlocksPage() {
   return (
     <div className="p-2 space-y-6 min-h-full">
       {/* Statistics */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      >
+      <div>
         <Row gutter={[24, 24]}>
           <Col xs={24} sm={6}>
             <Card className="bg-gradient-to-br from-[#6fe0c8] to-[#419380da] border-0 text-white">
@@ -502,16 +494,12 @@ export default function BlocksPage() {
             </Card>
           </Col>
         </Row>
-      </motion.div>
+      </div>
 
       <Row gutter={[24, 24]}>
         {/* Charts */}
         <Col xs={24} lg={12}>
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
+          <div>
             <Card
               className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
               title={
@@ -535,16 +523,12 @@ export default function BlocksPage() {
                 </BarChart>
               </ResponsiveContainer>
             </Card>
-          </motion.div>
+          </div>
         </Col>
 
         {/* Filters */}
         <Col xs={24} lg={12}>
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
+          <div>
             <Card className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800 mb-6">
               <Row gutter={[16, 16]} align="middle">
                 <Col xs={24} sm={12}>
@@ -619,16 +603,12 @@ export default function BlocksPage() {
                 </div>
               </div>
             </Card>
-          </motion.div>
+          </div>
         </Col>
       </Row>
 
       {/* Blocks Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.4 }}
-      >
+      <div>
         <Card
           className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
           title={
@@ -674,7 +654,7 @@ export default function BlocksPage() {
             size="middle"
           />
         </Card>
-      </motion.div>
+      </div>
 
       {/* Add Block Modal */}
       <Modal

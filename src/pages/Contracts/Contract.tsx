@@ -1,7 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import {
   FileText,
   Plus,
@@ -171,8 +169,12 @@ const generateMockContracts = (): ContractDto[] => [
 ];
 
 export default function ContractsPage() {
-  const [contracts, setContracts] = useState<ContractDto[]>([]);
-  const [filteredContracts, setFilteredContracts] = useState<ContractDto[]>([]);
+  const [contracts, setContracts] = useState<ContractDto[]>(
+    generateMockContracts()
+  );
+  const [filteredContracts, setFilteredContracts] = useState<ContractDto[]>(
+    generateMockContracts()
+  );
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
   const [selectedContract, setSelectedContract] = useState<ContractDto | null>(
@@ -183,11 +185,6 @@ export default function ContractsPage() {
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [form] = Form.useForm();
 
-  useEffect(() => {
-    const mockData = generateMockContracts();
-    setContracts(mockData);
-    setFilteredContracts(mockData);
-  }, []);
   const navigate = useNavigate();
   // Filter contracts
   useEffect(() => {
@@ -466,11 +463,7 @@ export default function ContractsPage() {
   return (
     <div className="p-2 space-y-6 min-h-full">
       {/* Statistics */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      >
+      <div>
         <Row gutter={[24, 24]}>
           <Col xs={24} sm={6}>
             <Card className="bg-gradient-to-br from-[#6fe0c8] to-[#419380da] border-0 text-slate-600 dark:text-slate-400">
@@ -552,14 +545,10 @@ export default function ContractsPage() {
             </Card>
           </Col>
         </Row>
-      </motion.div>
+      </div>
 
       {/* Filters */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
+      <div>
         <Card className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800">
           <Row gutter={[16, 16]} align="middle">
             <Col xs={24} sm={8}>
@@ -608,14 +597,10 @@ export default function ContractsPage() {
             </Col>
           </Row>
         </Card>
-      </motion.div>
+      </div>
 
       {/* Contracts Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-      >
+      <div>
         <Card
           className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
           title={
@@ -656,7 +641,7 @@ export default function ContractsPage() {
             size="middle"
           />
         </Card>
-      </motion.div>
+      </div>
 
       {/* Add Contract Modal */}
       <Modal

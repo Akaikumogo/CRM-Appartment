@@ -1,6 +1,3 @@
-'use client';
-
-import { motion } from 'framer-motion';
 import { Home, DollarSign, UserCheck, UserX, TrendingUp } from 'lucide-react';
 import {
   Card,
@@ -393,22 +390,13 @@ export default function HomePage() {
   return (
     <div className="p-2 space-y-6 min-h-full">
       {/* Stats Cards */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      >
+      <div>
         <Row gutter={[24, 24]}>
           {salesStats.map((stat, index) => {
             const Icon = stat.icon;
             return (
               <Col xs={24} sm={12} lg={6} key={stat.title}>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  whileHover={{ scale: 1.02 }}
-                >
+                <div key={index + 'wtf1Key'}>
                   <Card className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800">
                     <div className="flex items-center justify-between">
                       <div>
@@ -436,21 +424,17 @@ export default function HomePage() {
                       />
                     </div>
                   </Card>
-                </motion.div>
+                </div>
               </Col>
             );
           })}
         </Row>
-      </motion.div>
+      </div>
 
       <Row gutter={[24, 24]}>
         {/* Recent Sales */}
         <Col xs={24} lg={24}>
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
+          <div>
             <Card
               className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
               title={
@@ -473,11 +457,8 @@ export default function HomePage() {
             >
               <Space direction="vertical" size="middle" className="w-full">
                 {recentSales.map((sale, index) => (
-                  <motion.div
-                    key={sale.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                  <div
+                    key={sale.id + index}
                     className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-[#000000]/50"
                   >
                     <div className="flex items-center gap-3">
@@ -517,20 +498,16 @@ export default function HomePage() {
                         />
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
               </Space>
             </Card>
-          </motion.div>
+          </div>
         </Col>
       </Row>
 
       {/* Employee Attendance Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.4 }}
-      >
+      <div>
         <Card
           className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
           title={
@@ -552,7 +529,7 @@ export default function HomePage() {
             className="custom-table"
           />
         </Card>
-      </motion.div>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 @import 'tailwindcss';
+@tailwind utilities;
 @custom-variant dark (&:where(.dark, .dark *));
 .glass {
   /* From https://css.glass */
@@ -22,4 +23,122 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #f9f9f9; /* optional */
   color: #1a1a1a;
+}
+
+@layer base {
+  /* Global Mac Style Scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  *::-webkit-scrollbar-track {
+    @apply bg-transparent rounded-full;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    @apply bg-black/20 rounded-full transition-all duration-300 ease-in-out;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    @apply bg-black/40;
+    background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-thumb:active {
+    @apply bg-black/60;
+    background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-corner {
+    @apply bg-transparent;
+  }
+
+  /* Dark mode */
+  .dark * {
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+
+  .dark *::-webkit-scrollbar-thumb {
+    @apply bg-white/20;
+    background-clip: content-box;
+  }
+
+  .dark *::-webkit-scrollbar-thumb:hover {
+    @apply bg-white/40;
+    background-clip: content-box;
+  }
+
+  .dark *::-webkit-scrollbar-thumb:active {
+    @apply bg-white/60;
+    background-clip: content-box;
+  }
+
+  /* Main scrollbar with theme color */
+  html,
+  body {
+    scrollbar-color: rgba(107, 210, 188, 0.3) transparent;
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    @apply w-2.5 h-2.5;
+  }
+
+  html::-webkit-scrollbar-thumb,
+  body::-webkit-scrollbar-thumb {
+    background: rgba(107, 210, 188, 0.3);
+    @apply rounded-full;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  html::-webkit-scrollbar-thumb:hover,
+  body::-webkit-scrollbar-thumb:hover {
+    background: rgba(107, 210, 188, 0.5);
+    background-clip: content-box;
+  }
+
+  /* Smooth scrolling */
+  * {
+    scroll-behavior: smooth;
+  }
+
+  /* Auto-hide effect */
+  *::-webkit-scrollbar-thumb {
+    @apply opacity-70 transition-opacity duration-300;
+  }
+
+  *:hover::-webkit-scrollbar-thumb {
+    @apply opacity-100;
+  }
+
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    *::-webkit-scrollbar {
+      @apply w-1.5 h-1.5;
+    }
+
+    html::-webkit-scrollbar,
+    body::-webkit-scrollbar {
+      @apply w-2 h-2;
+    }
+  }
+
+  @media (max-width: 480px) {
+    *::-webkit-scrollbar {
+      @apply w-1 h-1;
+    }
+
+    html::-webkit-scrollbar,
+    body::-webkit-scrollbar {
+      @apply w-1.5 h-1.5;
+    }
+  }
 }

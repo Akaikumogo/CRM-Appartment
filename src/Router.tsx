@@ -1,19 +1,33 @@
+import { lazy, type JSX } from 'react';
 import { type RouteObject } from 'react-router-dom';
 import Navigator from './Providers/Navigator';
 import NotFoundPage from './pages/NotFounds/NotFoundPage';
 import ModuleNotFound from './pages/NotFounds/NotFoundModule';
-import LoginPage from './pages/Login/Login';
 import DashboardLayout from './Layout/Layout';
-import HomePage from './pages/Home';
-import Chess from './pages/SalesIndicators/SalesIndicators';
-import Workers from './pages/Workers';
-import ContractsPage from './pages/Contracts/Contract';
-import ContractDetailPage from './pages/Contracts/ContractDetails';
-import ClientsPage from './pages/Clients/Clients';
-import BlocksPage from './pages/Block/Block';
-import FloorsPage from './pages/Floor/Floor';
-import ApartmentsPage from './pages/Appartment/Appartment';
 
+import AnimateWrapper from './components/AnimateWrapper';
+
+const LoginPage = lazy(() => import('./pages/Login/Login'));
+const HomePage = lazy(() => import('./pages/Home'));
+const Chess = lazy(() => import('./pages/SalesIndicators/SalesIndicators'));
+const Workers = lazy(() => import('./pages/Workers'));
+const ContractsPage = lazy(() => import('./pages/Contracts/Contract'));
+const ContractDetailPage = lazy(
+  () => import('./pages/Contracts/ContractDetails')
+);
+const ClientsPage = lazy(() => import('./pages/Clients/Clients'));
+const BlocksPage = lazy(() => import('./pages/Block/Block'));
+const FloorsPage = lazy(() => import('./pages/Floor/Floor'));
+const ApartmentsPage = lazy(() => import('./pages/Appartment/Appartment'));
+const withSuspense = (
+  Component: React.LazyExoticComponent<() => JSX.Element>
+) => {
+  return (
+    <AnimateWrapper>
+      <Component />
+    </AnimateWrapper>
+  );
+};
 export const routes: RouteObject[] = [
   {
     path: '/',
@@ -25,11 +39,11 @@ export const routes: RouteObject[] = [
         children: [
           {
             path: 'home',
-            element: <HomePage />
+            element: withSuspense(HomePage)
           },
           {
             path: 'sales-indicators',
-            element: <Chess />
+            element: withSuspense(Chess)
           },
           {
             path: 'show-rooms',
@@ -44,40 +58,43 @@ export const routes: RouteObject[] = [
           },
           {
             path: 'workers',
-            element: <Workers />
+            element: withSuspense(Workers)
           },
           {
             path: 'contracts',
-            element: <ContractsPage />
+            element: withSuspense(ContractsPage)
           },
           {
             path: 'contracts/:contractId',
-            element: <ContractDetailPage />
+            element: withSuspense(ContractDetailPage)
           },
           {
             path: 'clients',
-            element: <ClientsPage />
+            element: withSuspense(ClientsPage)
           },
           {
             path: 'blocks',
-            element: <BlocksPage />
+            element: withSuspense(BlocksPage)
           },
           {
             path: 'floors',
-            element: <FloorsPage />
+            element: withSuspense(FloorsPage)
           },
           {
             path: 'appartments',
-            element: <ApartmentsPage />
+            element: withSuspense(ApartmentsPage)
           },
-          { path: '*', element: <ModuleNotFound /> }
+          {
+            path: '*',
+            element: <ModuleNotFound />
+          }
         ]
       }
     ]
   },
   {
     path: 'login',
-    element: <LoginPage />
+    element: withSuspense(LoginPage)
   },
   {
     path: '*',

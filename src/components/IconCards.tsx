@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { MousePointerClick, BanknoteArrowUp, SmilePlus } from 'lucide-react';
 
 const icons = [MousePointerClick, BanknoteArrowUp, SmilePlus];

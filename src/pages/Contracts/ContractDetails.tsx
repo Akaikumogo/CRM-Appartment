@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+
 import {
   ArrowLeft,
   Printer,
@@ -254,11 +254,7 @@ export default function ContractDetailPage() {
   return (
     <div className="p-2 space-y-6 min-h-full">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+      <div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button
@@ -303,14 +299,10 @@ export default function ContractDetailPage() {
             </Button>
           </Space>
         </div>
-      </motion.div>
+      </div>
 
       {/* Status Cards */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      >
+      <div>
         <Row gutter={[24, 24]}>
           <Col xs={24} sm={6}>
             <Card className="bg-gradient-to-br from-[#6fe0c8] to-[#419380da] border-0 text-white">
@@ -366,16 +358,12 @@ export default function ContractDetailPage() {
             </Card>
           </Col>
         </Row>
-      </motion.div>
+      </div>
 
       <Row gutter={[24, 24]}>
         {/* Contract Info */}
         <Col xs={24} lg={16}>
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
+          <div>
             <Card
               className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
               title={
@@ -438,15 +426,10 @@ export default function ContractDetailPage() {
                 </Descriptions.Item>
               </Descriptions>
             </Card>
-          </motion.div>
+          </div>
 
           {/* Goods Table */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="mt-6"
-          >
+          <div className="mt-6">
             <Card
               className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
               title={
@@ -483,16 +466,12 @@ export default function ContractDetailPage() {
                 )}
               />
             </Card>
-          </motion.div>
+          </div>
         </Col>
 
         {/* Client & Seller Info */}
         <Col xs={24} lg={8}>
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-          >
+          <div>
             <Card
               className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
               title={
@@ -558,15 +537,10 @@ export default function ContractDetailPage() {
                 </div>
               </div>
             </Card>
-          </motion.div>
+          </div>
 
           {/* Payment Summary */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.5 }}
-            className="mt-6"
-          >
+          <div className="mt-6">
             <Card
               className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
               title={
@@ -620,7 +594,7 @@ export default function ContractDetailPage() {
                 </div>
               </div>
             </Card>
-          </motion.div>
+          </div>
         </Col>
       </Row>
 
