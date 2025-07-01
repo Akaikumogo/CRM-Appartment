@@ -114,7 +114,7 @@ const Layout = () => {
             {/* Sidebar */}
             <aside
               style={{ width: isCollapsed ? 100 : 340 }}
-              className="row-span-2 w-full bg-slate-50 dark:bg-[#101010] backdrop-blur-sm border-r border-[#6bd2bc]"
+              className="row-span-2 w-full bg-slate-50 dark:bg-[#101010] backdrop-blur-sm border-r border-[#6bd2bc] transition-all duration-300"
             >
               <div className="flex flex-col h-full w-full">
                 {/* Logo */}
