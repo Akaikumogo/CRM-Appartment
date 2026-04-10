@@ -28,6 +28,7 @@
     "react-tsparticles": "^2.12.2",
     "react-window": "^1.8.11",
     "recharts": "^3.0.2",
+    "socket.io-client": "^4.8.3",
     "tailwindcss": "^4.1.10",
     "tsparticles": "^3.8.1",
     "tsparticles-slim": "^2.12.0",

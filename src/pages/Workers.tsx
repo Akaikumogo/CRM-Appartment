@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Users,
   UserPlus,
@@ -26,19 +27,25 @@ import {
   Select,
   Modal,
   Form,
-  DatePicker,
   message,
   Dropdown,
   Statistic,
-  Progress
+  Progress,
+  Spin,
+  Space,
 } from 'antd';
 import type { MenuProps } from 'antd';
+import {
+  BulkDeleteConfirmModal,
+  type BulkDeleteChoice,
+} from '@/components/BulkDeleteConfirmModal';
+import { useUserMutations, useUsersQuery } from '@/hooks/api/crmHooks';
+import { getSessionUser } from '@/lib/sessionUser';
 
 const { Title, Text } = Typography;
 const { Search: AntSearch } = Input;
 const { Option } = Select;
 
-// Worker data type based on the entity structure
 export type WorkerDto = {
   id: string;
   userName: string;
@@ -48,115 +55,54 @@ export type WorkerDto = {
   passportNumber: number;
   fullName: string;
   companyId: string;
-  role: 'Admin' | 'Manager' | 'Seller' | 'CEO';
+  role: string;
   image?: string;
   password: string;
   status: 'active' | 'inactive';
   joinDate: string;
   salary: number;
   performance: number;
-  attendance: number;
 };
 
-// Generate mock workers
-const generateMockWorkers = (): WorkerDto[] => [
-  {
-    id: '1',
-    userName: 'sardor_umarov',
-    phoneNumber: '+998901234567',
-    birthDate: '1990-05-15',
-    passportSeria: 'AD',
-    passportNumber: 1234567,
-    fullName: 'Sardor Umarov',
-    companyId: 'comp1',
-    role: 'Seller',
-    image: '',
-    password: 'hashed_password',
+type ApiUserRow = {
+  id: string;
+  email: string;
+  fullName?: string | null;
+  organizationId?: string | null;
+  role: string;
+};
+
+function mapApiUser(u: ApiUserRow): WorkerDto {
+  return {
+    id: u.id,
+    userName: u.email,
+    phoneNumber: '—',
+    passportSeria: '—',
+    passportNumber: 0,
+    fullName: u.fullName || u.email,
+    companyId: u.organizationId ?? '—',
+    role: u.role,
+    password: '',
     status: 'active',
-    joinDate: '2023-01-15',
-    salary: 5000000,
-    performance: 92,
-    attendance: 95
-  },
-  {
-    id: '2',
-    userName: 'dilshod_rahimov',
-    phoneNumber: '+998901234568',
-    birthDate: '1988-08-22',
-    passportSeria: 'AD',
-    passportNumber: 2345678,
-    fullName: 'Dilshod Rahimov',
-    companyId: 'comp1',
-    role: 'Manager',
-    image: '',
-    password: 'hashed_password',
-    status: 'active',
-    joinDate: '2022-06-10',
-    salary: 8000000,
-    performance: 88,
-    attendance: 98
-  },
-  {
-    id: '3',
-    userName: 'aziza_karimova',
-    phoneNumber: '+998901234569',
-    birthDate: '1992-12-03',
-    passportSeria: 'AD',
-    passportNumber: 3456789,
-    fullName: 'Aziza Karimova',
-    companyId: 'comp1',
-    role: 'Seller',
-    image: '',
-    password: 'hashed_password',
-    status: 'active',
-    joinDate: '2023-03-20',
-    salary: 4500000,
-    performance: 95,
-    attendance: 92
-  },
-  {
-    id: '4',
-    userName: 'jasur_toshev',
-    phoneNumber: '+998901234570',
-    birthDate: '1985-04-18',
-    passportSeria: 'AD',
-    passportNumber: 4567890,
-    fullName: 'Jasur Toshev',
-    companyId: 'comp1',
-    role: 'CEO',
-    image: '',
-    password: 'hashed_password',
-    status: 'active',
-    joinDate: '2021-01-01',
-    salary: 15000000,
-    performance: 90,
-    attendance: 85
-  },
-  {
-    id: '5',
-    userName: 'nigora_alieva',
-    phoneNumber: '+998901234571',
-    birthDate: '1994-07-25',
-    passportSeria: 'AD',
-    passportNumber: 5678901,
-    fullName: 'Nigora Alieva',
-    companyId: 'comp1',
-    role: 'Seller',
-    image: '',
-    password: 'hashed_password',
-    status: 'inactive',
-    joinDate: '2023-08-12',
-    salary: 4000000,
-    performance: 78,
-    attendance: 88
-  }
-];
+    joinDate: '',
+    salary: 0,
+    performance: 0,
+  };
+}
 
 export default function WorkersPage() {
-  const [workers, setWorkers] = useState<WorkerDto[]>(generateMockWorkers());
-  const [filteredWorkers, setFilteredWorkers] = useState<WorkerDto[]>(
-    generateMockWorkers()
+  const navigate = useNavigate();
+  const me = getSessionUser();
+  const { data: usersRaw = [], isLoading: loadingUsers } = useUsersQuery();
+  const { create, remove, bulkRemove } = useUserMutations();
+
+  const workers = useMemo(
+    () => usersRaw.map(mapApiUser),
+    [usersRaw],
   );
+
+  const [filteredWorkers, setFilteredWorkers] = useState<WorkerDto[]>([]);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState<WorkerDto | null>(null);
@@ -164,6 +110,7 @@ export default function WorkersPage() {
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [form] = Form.useForm();
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   // Filter workers
   useEffect(() => {
@@ -194,23 +141,66 @@ export default function WorkersPage() {
     total: workers.length,
     active: workers.filter((w) => w.status === 'active').length,
     inactive: workers.filter((w) => w.status === 'inactive').length,
-    avgPerformance: Math.round(
-      workers.reduce((acc, w) => acc + w.performance, 0) / workers.length
-    ),
-    avgAttendance: Math.round(
-      workers.reduce((acc, w) => acc + w.attendance, 0) / workers.length
-    )
+    avgPerformance:
+      workers.length === 0
+        ? 0
+        : Math.round(
+            workers.reduce((acc, w) => acc + w.performance, 0) /
+              workers.length,
+          ),
   };
 
   // Role colors
   const getRoleColor = (role: string) => {
-    const colors = {
+    const colors: Record<string, string> = {
+      superadmin: '#ef4444',
+      org_admin: '#8b5cf6',
+      staff: '#6bd2bc',
       CEO: '#ef4444',
       Manager: '#3b82f6',
       Seller: '#6bd2bc',
-      Admin: '#8b5cf6'
+      Admin: '#8b5cf6',
     };
-    return colors[role as keyof typeof colors] || '#6b7280';
+    return colors[role] || '#6b7280';
+  };
+
+  const canBulk = ['superadmin', 'org_admin'].includes(me?.role ?? '');
+
+  const openDeleteUser = (record: WorkerDto) => {
+    if (record.id === me?.id) {
+      message.warning('O‘z akkauntingizni o‘chirib bo‘lmaydi');
+      return;
+    }
+    if (record.role === 'superadmin') {
+      message.error('Superadminni o‘chirib bo‘lmaydi');
+      return;
+    }
+    Modal.confirm({
+      title: 'Foydalanuvchini o‘chirish?',
+      content: `${record.fullName} (${record.userName})`,
+      okText: 'O‘chirish',
+      okType: 'danger',
+      cancelText: 'Bekor',
+      onOk: async () => {
+        try {
+          await remove.mutateAsync(record.id);
+          message.success('O‘chirildi');
+          setSelectedRowKeys((keys) => keys.filter((k) => k !== record.id));
+        } catch {
+          message.error('O‘chirishda xatolik');
+        }
+      },
+    });
+  };
+
+  const onEditUser = (record: WorkerDto) => {
+    if (record.role === 'staff' && me?.role === 'org_admin') {
+      navigate('/dashboard/permissions');
+      return;
+    }
+    message.info(
+      'STAFF ruxsatlari «Ruxsatlar» sahifasidan; boshqa rollar uchun alohida tahrir endpointi yo‘q.',
+    );
   };
 
   // Table columns
@@ -251,10 +241,9 @@ export default function WorkersPage() {
         </Tag>
       ),
       filters: [
-        { text: 'CEO', value: 'CEO' },
-        { text: 'Manager', value: 'Manager' },
-        { text: 'Seller', value: 'Seller' },
-        { text: 'Admin', value: 'Admin' }
+        { text: 'superadmin', value: 'superadmin' },
+        { text: 'org_admin', value: 'org_admin' },
+        { text: 'staff', value: 'staff' },
       ],
       onFilter: (value: any, record: WorkerDto) => record.role === value
     },
@@ -309,29 +298,6 @@ export default function WorkersPage() {
       sorter: (a: WorkerDto, b: WorkerDto) => a.performance - b.performance
     },
     {
-      title: 'Davomat',
-      dataIndex: 'attendance',
-      key: 'attendance',
-      render: (attendance: number) => (
-        <div className="w-20">
-          <Progress
-            percent={attendance}
-            size="small"
-            strokeColor={
-              attendance > 95
-                ? '#10b981'
-                : attendance > 85
-                ? '#f59e0b'
-                : '#ef4444'
-            }
-            showInfo={false}
-          />
-          <Text className="text-xs text-slate-500">{attendance}%</Text>
-        </div>
-      ),
-      sorter: (a: WorkerDto, b: WorkerDto) => a.attendance - b.attendance
-    },
-    {
       title: 'Amallar',
       key: 'actions',
       render: (record: WorkerDto) => {
@@ -343,19 +309,31 @@ export default function WorkersPage() {
             onClick: () => {
               setSelectedWorker(record);
               setIsViewModalVisible(true);
-            }
+            },
           },
-          {
-            key: 'edit',
-            label: 'Tahrirlash',
-            icon: <Edit size={14} />
-          },
-          {
-            key: 'delete',
-            label: "O'chirish",
-            icon: <Trash2 size={14} />,
-            danger: true
-          }
+          ...(me?.role === 'org_admin' && record.role === 'staff'
+            ? [
+                {
+                  key: 'edit',
+                  label: 'Ruxsatlar',
+                  icon: <Edit size={14} />,
+                  onClick: () => onEditUser(record),
+                } as const,
+              ]
+            : []),
+          ...(canBulk &&
+          record.id !== me?.id &&
+          record.role !== 'superadmin'
+            ? [
+                {
+                  key: 'delete',
+                  label: "O'chirish",
+                  icon: <Trash2 size={14} />,
+                  danger: true,
+                  onClick: () => openDeleteUser(record),
+                } as const,
+              ]
+            : []),
         ];
 
         return (
@@ -367,19 +345,41 @@ export default function WorkersPage() {
     }
   ];
 
-  const handleAddWorker = (values: any) => {
-    const newWorker: WorkerDto = {
-      id: Date.now().toString(),
-      ...values,
-      status: 'active',
-      joinDate: new Date().toISOString().split('T')[0],
-      performance: 0,
-      attendance: 0
-    };
-    setWorkers([...workers, newWorker]);
-    setIsAddModalVisible(false);
-    form.resetFields();
-    message.success("Ishchi muvaffaqiyatli qo'shildi!");
+  const handleAddWorker = async (values: any) => {
+    try {
+      if (values.role === 'staff' && !values.branchId) {
+        message.error('Staff uchun filial UUID kiriting');
+        return;
+      }
+      await create.mutateAsync({
+        email: values.email,
+        password: values.password,
+        role: values.role,
+        fullName: values.fullName,
+        organizationId: me?.role === 'superadmin' ? values.organizationId : undefined,
+        branchId:
+          values.role === 'staff' ? values.branchId : undefined,
+      });
+      setIsAddModalVisible(false);
+      form.resetFields();
+      message.success("Ishchi muvaffaqiyatli qo'shildi!");
+    } catch {
+      message.error('Qo‘shib bo‘lmadi (maydonlar / ruxsat)');
+    }
+  };
+
+  const runBulkDeleteUsers = async (choice: BulkDeleteChoice) => {
+    try {
+      if (choice === 'selected') {
+        await bulkRemove.mutateAsync({ ids: selectedRowKeys });
+      } else {
+        await bulkRemove.mutateAsync({ deleteAllInScope: true });
+      }
+      message.success('O‘chirildi');
+      setSelectedRowKeys([]);
+    } catch {
+      message.error('O‘chirishda xatolik');
+    }
   };
 
   return (
@@ -453,12 +453,12 @@ export default function WorkersPage() {
                 className="text-slate-600 dark:text-slate-400"
                 title={
                   <span className="text-slate-600 dark:text-slate-400">
-                    O'rtacha Davomat
+                    Nofaol
                   </span>
                 }
-                value={stats.avgAttendance}
-                suffix={
-                  <span className="text-slate-600 dark:text-slate-400">%</span>
+                value={stats.inactive}
+                prefix={
+                  <Users className="text-slate-600 dark:text-slate-400" />
                 }
                 valueStyle={{
                   fontSize: '2rem',
@@ -531,35 +531,53 @@ export default function WorkersPage() {
               >
                 Ishchilar Ro'yxati
               </Title>
-              <Button
-                type="primary"
-                size="large"
-                icon={<UserPlus size={18} />}
-                onClick={() => setIsAddModalVisible(true)}
-                style={{
-                  background: '#6bd2bc',
-                  border: 'none'
-                }}
-              >
-                Yangi Ishchi
-              </Button>
+              <Space>
+                {canBulk && (
+                  <Button danger onClick={() => setBulkDeleteOpen(true)}>
+                    O‘chirish
+                  </Button>
+                )}
+                <Button
+                  type="primary"
+                  size="large"
+                  icon={<UserPlus size={18} />}
+                  onClick={() => setIsAddModalVisible(true)}
+                  style={{
+                    background: '#6bd2bc',
+                    border: 'none'
+                  }}
+                >
+                  Yangi Ishchi
+                </Button>
+              </Space>
             </div>
           }
         >
-          <Table
-            columns={columns}
-            dataSource={filteredWorkers}
-            rowKey="id"
-            pagination={{
-              pageSize: 10,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total, range) =>
-                `${range[0]}-${range[1]} / ${total} ta`
-            }}
-            scroll={{ x: 1000 }}
-            size="middle"
-          />
+          <Spin spinning={loadingUsers}>
+            <Table
+              columns={columns}
+              dataSource={filteredWorkers}
+              rowKey="id"
+              rowSelection={
+                canBulk
+                  ? {
+                      selectedRowKeys,
+                      onChange: (keys) =>
+                        setSelectedRowKeys(keys as string[]),
+                    }
+                  : undefined
+              }
+              pagination={{
+                pageSize: 10,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total, range) =>
+                  `${range[0]}-${range[1]} / ${total} ta`
+              }}
+              scroll={{ x: 1000 }}
+              size="middle"
+            />
+          </Spin>
         </Card>
       </div>
 
@@ -580,109 +598,48 @@ export default function WorkersPage() {
         width={600}
       >
         <Form form={form} layout="vertical" onFinish={handleAddWorker}>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="fullName"
-                label="To'liq ism"
-                rules={[{ required: true, message: "To'liq ismni kiriting" }]}
-              >
-                <Input placeholder="To'liq ismni kiriting" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="userName"
-                label="Username"
-                rules={[{ required: true, message: 'Username kiriting' }]}
-              >
-                <Input placeholder="Username kiriting" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="phoneNumber"
-                label="Telefon raqam"
-                rules={[
-                  { required: true, message: 'Telefon raqamni kiriting' }
-                ]}
-              >
-                <Input placeholder="+998901234567" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="birthDate" label="Tug'ilgan sana">
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="passportSeria"
-                label="Passport seriya"
-                rules={[
-                  { required: true, message: 'Passport seriyasini kiriting' }
-                ]}
-              >
-                <Input placeholder="AD" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="passportNumber"
-                label="Passport raqam"
-                rules={[
-                  { required: true, message: 'Passport raqamini kiriting' }
-                ]}
-              >
-                <Input type="number" placeholder="1234567" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="role"
-                label="Lavozim"
-                rules={[{ required: true, message: 'Lavozimni tanlang' }]}
-              >
-                <Select placeholder="Lavozimni tanlang">
-                  <Option value="CEO">CEO</Option>
-                  <Option value="Manager">Manager</Option>
-                  <Option value="Seller">Seller</Option>
-                  <Option value="Admin">Admin</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="salary"
-                label="Maosh"
-                rules={[{ required: true, message: 'Maoshni kiriting' }]}
-              >
-                <Input type="number" placeholder="5000000" suffix="so'm" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="companyId" label="Kompaniya ID">
-                <Input placeholder="comp1" />
-              </Form.Item>
-            </Col>
-          </Row>
-
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[{ required: true, type: 'email' }]}
+          >
+            <Input placeholder="user@company.com" />
+          </Form.Item>
           <Form.Item
             name="password"
             label="Parol"
-            rules={[{ required: true, message: 'Parolni kiriting' }]}
+            rules={[{ required: true, min: 8, message: 'min 8 belgi' }]}
           >
-            <Input.Password placeholder="Parolni kiriting" />
+            <Input.Password />
           </Form.Item>
+          <Form.Item name="fullName" label="To‘liq ism">
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="role"
+            label="Rol"
+            rules={[{ required: true }]}
+            initialValue="staff"
+          >
+            <Select>
+              <Option value="staff">staff</Option>
+              <Option value="org_admin">org_admin</Option>
+            </Select>
+          </Form.Item>
+          {me?.role === 'superadmin' && (
+            <Form.Item
+              name="organizationId"
+              label="Tashkilot UUID"
+              rules={[{ required: true }]}
+            >
+              <Input placeholder="org id" />
+            </Form.Item>
+          )}
+          {(me?.role === 'superadmin' || me?.role === 'org_admin') && (
+            <Form.Item name="branchId" label="Filial UUID (staff uchun)">
+              <Input placeholder="branch id" />
+            </Form.Item>
+          )}
         </Form>
       </Modal>
 
@@ -773,37 +730,31 @@ export default function WorkersPage() {
               </Col>
             </Row>
 
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <div>
-                <Text strong>Ish Samarasi:</Text>
-                <Progress
-                  percent={selectedWorker.performance}
-                  strokeColor={
-                    selectedWorker.performance > 90
-                      ? '#10b981'
-                      : selectedWorker.performance > 70
-                      ? '#f59e0b'
-                      : '#ef4444'
-                  }
-                />
-              </div>
-              <div>
-                <Text strong>Davomat:</Text>
-                <Progress
-                  percent={selectedWorker.attendance}
-                  strokeColor={
-                    selectedWorker.attendance > 95
-                      ? '#10b981'
-                      : selectedWorker.attendance > 85
-                      ? '#f59e0b'
-                      : '#ef4444'
-                  }
-                />
-              </div>
+            <div className="mt-4">
+              <Text strong>Ish samarasi (CRM):</Text>
+              <Progress
+                percent={selectedWorker.performance}
+                strokeColor={
+                  selectedWorker.performance > 90
+                    ? '#10b981'
+                    : selectedWorker.performance > 70
+                    ? '#f59e0b'
+                    : '#ef4444'
+                }
+              />
             </div>
           </div>
         )}
       </Modal>
+
+      <BulkDeleteConfirmModal
+        open={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        entityLabel="Xodimlar"
+        selectedCount={selectedRowKeys.length}
+        scopeDescription="Ruxsat doirasidagi barcha xodimlar (joriy sahifa va jadval filtrlari emas — backend ro‘yxati bilan bir xil chegaralar)."
+        onConfirm={runBulkDeleteUsers}
+      />
     </div>
   );
 }

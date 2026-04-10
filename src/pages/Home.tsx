@@ -1,535 +1,227 @@
-import { Home, DollarSign, UserCheck, UserX, TrendingUp } from 'lucide-react';
+import { useMemo } from 'react';
+import { Building2, Home, Layers3, Tag } from 'lucide-react';
 import {
   Card,
-  Button,
-  Badge,
-  Row,
   Col,
+  Row,
+  Spin,
+  Table,
+  Tag as AntTag,
   Typography,
-  Space,
-  Avatar,
-  Table
 } from 'antd';
+import type { BranchOverviewRow } from '@/api/analytics';
+import { useAnalyticsOverviewQuery } from '@/hooks/api/crmHooks';
 import { useTranslation } from '@/hooks/useTranslation';
-const { Title, Text } = Typography;
+import { getSessionUser } from '@/lib/sessionUser';
+
+type OverviewRow = BranchOverviewRow;
+
+const { Text, Title } = Typography;
 
 export default function HomePage() {
   const { t } = useTranslation();
-  const salesStats = [
+  const user = getSessionUser();
+  const live = user?.role === 'org_admin' || user?.role === 'staff';
+  const { data: rows = [], isLoading: loading } = useAnalyticsOverviewQuery(
+    live,
+    { retry: 0 },
+  );
+
+  const totals = useMemo(
+    () =>
+      rows.reduce(
+        (a, r) => ({
+          total: a.total + r.total,
+          forSale: a.forSale + r.forSale,
+          reserved: a.reserved + r.reserved,
+          sold: a.sold + r.sold,
+        }),
+        { total: 0, forSale: 0, reserved: 0, sold: 0 },
+      ),
+    [rows],
+  );
+
+  if (!live) {
+    return (
+      <div className="p-6 text-slate-600 dark:text-slate-400">
+        {t({
+          uz: 'Boshqaruv paneli uchun tizimga kiring.',
+          en: 'Sign in to open the dashboard.',
+          ru: 'Войдите в систему.',
+        })}
+      </div>
+    );
+  }
+
+  const statCards = [
     {
-      title: t({
-        uz: 'Bugungi Sotuvlar',
-        ru: 'Сегодняшние продажи',
-        en: "Today's Sales"
+      key: 'total',
+      label: t({
+        uz: 'Jami kvartira',
+        en: 'Total units',
+        ru: 'Всего квартир',
       }),
-      value: 3,
-      amount: t({
-        uz: "285,000 so'm",
-        ru: '285,000 сум',
-        en: '$285,000'
-      }),
+      value: totals.total,
       icon: Home,
-      color: '#6bd2bc'
+      color: '#2dd4bf',
     },
     {
-      title: t({
-        uz: 'Oylik Sotuvlar',
-        ru: 'Ежемесячные продажи',
-        en: 'Monthly Sales'
+      key: 'sale',
+      label: t({
+        uz: 'Sotuvda',
+        en: 'For sale',
+        ru: 'В продаже',
       }),
-      value: 18,
-      amount: t({
-        uz: "2.1M so'm",
-        ru: '2.1M сум',
-        en: '$2.1M'
-      }),
-      icon: DollarSign,
-      color: '#10b981'
+      value: totals.forSale,
+      icon: Tag,
+      color: '#10b981',
     },
     {
-      title: t({
-        uz: 'Ishchilar',
-        ru: 'Сотрудники',
-        en: 'Employees'
+      key: 'res',
+      label: t({
+        uz: 'Bron',
+        en: 'Reserved',
+        ru: 'Бронь',
       }),
-      value: 12,
-      total: 15,
-      icon: UserCheck,
-      color: '#3b82f6'
+      value: totals.reserved,
+      icon: Layers3,
+      color: '#f59e0b',
     },
     {
-      title: t({
-        uz: 'Kechikkanlar',
-        ru: 'Пропущенные',
-        en: 'Missed'
+      key: 'sold',
+      label: t({
+        uz: 'Sotilgan',
+        en: 'Sold',
+        ru: 'Продано',
       }),
-      value: 2,
-      icon: UserX,
-      color: '#ef4444'
-    }
+      value: totals.sold,
+      icon: Building2,
+      color: '#6366f1',
+    },
   ];
 
-  // Recent sales
-  const recentSales = [
-    {
-      id: 1,
-      apartment: 'A-1-12',
-      client: t({
-        uz: 'Alisher Karimov',
-        ru: 'Алишер Каримов',
-        en: 'Alisher Karimov'
-      }),
-      seller: t({
-        uz: 'Sardor Umarov',
-        ru: 'Сардор Умаров',
-        en: 'Sardor Umarov'
-      }),
-      price: 95000,
-      time: t({
-        uz: '10:30',
-        ru: '10:30',
-        en: '10:30'
-      }),
-      status: t({
-        uz: 'Tugallangan',
-        ru: 'Завершен',
-        en: 'Completed'
-      })
-    },
-    {
-      id: 2,
-      apartment: 'B-3-25',
-      client: t({
-        uz: 'Malika Tosheva',
-        ru: 'Малика Тощева',
-        en: 'Malika Tosheva'
-      }),
-      seller: t({
-        uz: 'Dilshod Rahimov',
-        ru: 'Дільшод Рахимов',
-        en: 'Dilshod Rahimov'
-      }),
-      price: 120000,
-      time: t({
-        uz: '14:15',
-        ru: '14:15',
-        en: '14:15'
-      }),
-      status: t({
-        uz: 'Tugallangan',
-        ru: 'Завершен',
-        en: 'Completed'
-      })
-    },
-    {
-      id: 3,
-      apartment: 'C-2-18',
-      client: t({
-        uz: 'Bobur Nazarov',
-        ru: 'Бобур Назаров',
-        en: 'Bobur Nazarov'
-      }),
-      seller: t({
-        uz: 'Aziza Karimova',
-        ru: 'Азиза Каримова',
-        en: 'Aziza Karimova'
-      }),
-      price: 85000,
-      time: t({
-        uz: '16:45',
-        ru: '16:45',
-        en: '16:45'
-      }),
-      status: t({
-        uz: 'Oyida',
-        ru: 'В ожидании',
-        en: 'Pending'
-      })
-    }
-  ];
-
-  // Employee attendance
-  const employeeAttendance = [
-    {
-      key: 1,
-      name: t({
-        uz: 'Sardor Umarov',
-        ru: 'Сардор Умаров',
-        en: 'Sardor Umarov'
-      }),
-      role: t({
-        uz: 'Sotuvchi',
-        ru: 'Продавец',
-        en: 'Seller'
-      }),
-      checkIn: t({
-        uz: '08:45',
-        ru: '08:45',
-        en: '08:45'
-      }),
-      checkOut: '-',
-      status: t({
-        uz: 'Ishda',
-        ru: 'Работает',
-        en: 'Present'
-      }),
-      sales: 2
-    },
-    {
-      key: 2,
-      name: t({
-        uz: 'Dilshod Rahimov',
-        ru: 'Дільшод Рахимов',
-        en: 'Dilshod Rahimov'
-      }),
-      role: t({
-        uz: 'Sotuvchi',
-        ru: 'Продавец',
-        en: 'Seller'
-      }),
-      checkIn: t({
-        uz: '09:15',
-        ru: '09:15',
-        en: '09:15'
-      }),
-      checkOut: '-',
-      status: t({
-        uz: 'Ishda',
-        ru: 'Работает',
-        en: 'Present'
-      }),
-      sales: 1
-    },
-    {
-      key: 3,
-      name: t({
-        uz: 'Aziza Karimova',
-        ru: 'Азиза Каримова',
-        en: 'Aziza Karimova'
-      }),
-      role: t({
-        uz: 'Sotuvchi',
-        ru: 'Продавец',
-        en: 'Seller'
-      }),
-      checkIn: t({
-        uz: '08:30',
-        ru: '08:30',
-        en: '08:30'
-      }),
-      checkOut: '-',
-      status: t({
-        uz: 'Ishda',
-        ru: 'Работает',
-        en: 'Present'
-      }),
-      sales: 1
-    },
-    {
-      key: 4,
-      name: t({
-        uz: 'Jasur Toshev',
-        ru: 'Джасур Тощев',
-        en: 'Jasur Toshev'
-      }),
-      role: t({
-        uz: 'Menejer',
-        ru: 'Менеджер',
-        en: 'Manager'
-      }),
-      checkIn: t({
-        uz: '10:30',
-        ru: '10:30',
-        en: '10:30'
-      }),
-      checkOut: '-',
-      status: t({
-        uz: 'Kechikdi',
-        ru: 'Опаздывает',
-        en: 'Late'
-      }),
-      sales: 0
-    },
-    {
-      key: 5,
-      name: t({
-        uz: 'Nigora Alieva',
-        ru: 'Нигора Алиева',
-        en: 'Nigora Alieva'
-      }),
-      role: t({
-        uz: 'Sotuvchi',
-        ru: 'Продавец',
-        en: 'Seller'
-      }),
-      checkIn: '-',
-      checkOut: '-',
-      status: t({
-        uz: 'Kelmadi',
-        ru: 'Не пришел',
-        en: 'Absent'
-      }),
-      sales: 0
-    }
-  ];
-
-  const attendanceColumns = [
-    {
-      title: t({
-        uz: 'Ism',
-        ru: 'Имя',
-        en: 'Name'
-      }),
-      dataIndex: 'name',
-      key: 'name',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      render: (text: string, record: any) => (
-        <div className="flex items-center gap-2">
-          {' '}
-          <Avatar size="small" style={{ backgroundColor: '#6bd2bc' }}>
-            {text
-              .split(' ')
-              .map((n) => n[0])
-              .join('')}
-          </Avatar>
-          <div>
-            <div className="font-medium text-slate-900 dark:text-white">
-              {text}
-            </div>
-            <div className="text-xs text-slate-500">{record.role}</div>
-          </div>
-        </div>
-      )
-    },
-    {
-      title: t({
-        uz: 'Kelish',
-        ru: 'Время начала',
-        en: 'Check-in'
-      }),
-      dataIndex: 'checkIn',
-      key: 'checkIn',
-      render: (time: string) => (
-        <Text
-          className={
-            time === '-' ? 'text-slate-400' : 'text-slate-900 dark:text-white'
-          }
-        >
-          {time || '-'}
-        </Text>
-      )
-    },
-    {
-      title: t({
-        uz: 'Ketish',
-        ru: 'Время конца',
-        en: 'Check-out'
-      }),
-      dataIndex: 'checkOut',
-      key: 'checkOut',
-      render: (time: string) => <Text className="text-slate-400">{time}</Text>
-    },
-    {
-      title: t({
-        uz: 'Holat',
-        ru: 'Статус',
-        en: 'Status'
-      }),
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => (
-        <Badge
-          color={
-            status ===
-            t({
-              uz: 'Ishda',
-              ru: 'Работает',
-              en: 'Present'
-            })
-              ? 'green'
-              : status ===
-                t({
-                  uz: 'Kechikdi',
-                  ru: 'Опаздывает',
-                  en: 'Late'
-                })
-              ? 'orange'
-              : 'red'
-          }
-          text={status}
-          className="text-xs"
-        />
-      )
-    },
-    {
-      title: t({
-        uz: 'Sotuvlar',
-        ru: 'Продажи',
-        en: 'Sales'
-      }),
-      dataIndex: 'sales',
-      key: 'sales',
-      render: (sales: number) => (
-        <Text className="text-slate-900 dark:text-white font-medium">
-          {sales}{' '}
-          {t({
-            uz: 'ta',
-            ru: 'шт.',
-            en: 'items'
-          })}
-          {sales > 0 ? (
-            <span className="text-green-600 dark:text-green-400">
-              {' '}
-              <TrendingUp size={14} className="inline" />{' '}
-            </span>
-          ) : null}
-        </Text>
-      )
-    }
-  ];
   return (
-    <div className="p-2 space-y-6 min-h-full">
-      {/* Stats Cards */}
+    <div className="min-h-full space-y-6 p-2">
       <div>
-        <Row gutter={[24, 24]}>
-          {salesStats.map((stat, index) => {
-            const Icon = stat.icon;
+        <Title level={4} className="!mb-1 !text-slate-900 dark:!text-white">
+          {user?.role === 'org_admin'
+            ? t({
+                uz: 'Barcha filiallar — qisqacha',
+                en: 'All branches — overview',
+                ru: 'Все филиалы — обзор',
+              })
+            : t({
+                uz: 'Sizning filialingiz',
+                en: 'Your branch',
+                ru: 'Ваш филиал',
+              })}
+        </Title>
+        <Text type="secondary">
+          {t({
+            uz: 'Ma’lumotlar backenddan real vaqtda hisoblanadi.',
+            en: 'Counts are loaded from the API.',
+            ru: 'Данные с сервера.',
+          })}
+        </Text>
+      </div>
+
+      <Spin spinning={loading}>
+        <Row gutter={[16, 16]}>
+          {statCards.map((s) => {
+            const Icon = s.icon;
             return (
-              <Col xs={24} sm={12} lg={6} key={stat.title}>
-                <div key={index + 'wtf1Key'}>
-                  <Card className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Text className="text-slate-600 dark:text-slate-400 text-sm">
-                          {stat.title}
-                        </Text>
-                        <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-                          {stat.value}
-                          {stat.total && (
-                            <span className="text-slate-400">
-                              /{stat.total}
-                            </span>
-                          )}
-                        </div>
-                        {/* {stat.amount && (
-                          <Text className="text-green-600 dark:text-green-400 text-sm font-medium">
-                            {stat.amount}
-                          </Text>
-                        )} */}
+              <Col xs={24} sm={12} lg={6} key={s.key}>
+                <Card className="border-slate-200 bg-white/90 dark:border-slate-800 dark:bg-[#101010]">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Text className="text-sm text-slate-500 dark:text-slate-400">
+                        {s.label}
+                      </Text>
+                      <div className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
+                        {s.value}
                       </div>
-                      <Avatar
-                        size={48}
-                        style={{ backgroundColor: stat.color }}
-                        icon={<Icon size={24} />}
-                      />
                     </div>
-                  </Card>
-                </div>
+                    <div
+                      className="flex h-12 w-12 items-center justify-center rounded-xl"
+                      style={{ backgroundColor: `${s.color}33` }}
+                    >
+                      <Icon size={22} style={{ color: s.color }} />
+                    </div>
+                  </div>
+                </Card>
               </Col>
             );
           })}
         </Row>
-      </div>
 
-      <Row gutter={[24, 24]}>
-        {/* Recent Sales */}
-        <Col xs={24} lg={24}>
-          <div>
-            <Card
-              className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
-              title={
-                <Title
-                  level={4}
-                  className="!text-slate-900 dark:!text-white !mb-0"
-                >
-                  Bugungi Sotuvlar
-                </Title>
-              }
-              extra={
-                <Button
-                  type="link"
-                  style={{ color: '#6bd2bc' }}
-                  className="p-0"
-                >
-                  Barchasini ko'rish
-                </Button>
-              }
-            >
-              <Space direction="vertical" size="middle" className="w-full">
-                {recentSales.map((sale, index) => (
-                  <div
-                    key={sale.id + index}
-                    className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-[#000000]/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Avatar
-                        style={{ backgroundColor: '#6bd2bc' }}
-                        icon={<Home size={16} />}
-                      />
-                      <div>
-                        <Title
-                          level={5}
-                          className="!text-slate-900 dark:!text-white !mb-0"
-                        >
-                          {sale.apartment}
-                        </Title>
-                        <Text className="text-slate-600 dark:text-slate-400 text-sm">
-                          {sale.client} • {sale.seller}
-                        </Text>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-semibold text-slate-900 dark:text-white">
-                        ${sale.price.toLocaleString()}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Text className="text-slate-500 text-xs">
-                          {sale.time}
-                        </Text>
-                        <Badge
-                          color={
-                            sale.status === 'completed' ? 'green' : 'orange'
-                          }
-                          text={
-                            sale.status === 'completed'
-                              ? 'Tugallandi'
-                              : 'Kutilmoqda'
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </Space>
-            </Card>
-          </div>
-        </Col>
-      </Row>
-
-      {/* Employee Attendance Table */}
-      <div>
         <Card
-          className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
+          className="mt-6 border-slate-200 bg-white/90 dark:border-slate-800 dark:bg-[#101010]"
           title={
-            <Title level={4} className="!text-slate-900 dark:!text-white !mb-0">
-              Ishchilar Davomligi
-            </Title>
-          }
-          extra={
-            <Button type="link" style={{ color: '#6bd2bc' }} className="p-0">
-              Batafsil
-            </Button>
+            <span className="text-slate-900 dark:text-white">
+              {t({
+                uz: 'Filial kesimida',
+                en: 'Per branch',
+                ru: 'По филиалам',
+              })}
+            </span>
           }
         >
-          <Table
-            columns={attendanceColumns}
-            dataSource={employeeAttendance}
+          <Table<OverviewRow>
+            rowKey="branchId"
+            dataSource={rows}
             pagination={false}
-            size="middle"
-            className="custom-table"
+            locale={{
+              emptyText: t({
+                uz: 'Hozircha filial yoki kvartira yo‘q',
+                en: 'No branches or units yet',
+                ru: 'Нет данных',
+              }),
+            }}
+            columns={[
+              {
+                title: t({ uz: 'Filial', en: 'Branch', ru: 'Филиал' }),
+                dataIndex: 'name',
+                render: (name: string, r) => (
+                  <span className="font-medium text-slate-900 dark:text-white">
+                    {name}
+                    {r.code ? (
+                      <Text type="secondary" className="ml-2 text-xs">
+                        ({r.code})
+                      </Text>
+                    ) : null}
+                  </span>
+                ),
+              },
+              {
+                title: 'VIP',
+                render: (_, r) =>
+                  r.isVip ? (
+                    <AntTag color="gold">VIP</AntTag>
+                  ) : (
+                    <AntTag>—</AntTag>
+                  ),
+              },
+              {
+                title: t({ uz: 'Holat', en: 'Status', ru: 'Статус' }),
+                render: (_, r) =>
+                  r.isBlocked ? (
+                    <AntTag color="red">
+                      {t({ uz: 'Blok', en: 'Blocked', ru: 'Блок' })}
+                    </AntTag>
+                  ) : (
+                    <AntTag color="green">
+                      {t({ uz: 'Faol', en: 'Active', ru: 'Активен' })}
+                    </AntTag>
+                  ),
+              },
+              { title: t({ uz: 'Sotuvda', en: 'For sale', ru: 'Продажа' }), dataIndex: 'forSale' },
+              { title: t({ uz: 'Bron', en: 'Reserved', ru: 'Бронь' }), dataIndex: 'reserved' },
+              { title: t({ uz: 'Sotilgan', en: 'Sold', ru: 'Продано' }), dataIndex: 'sold' },
+              { title: t({ uz: 'Jami', en: 'Total', ru: 'Всего' }), dataIndex: 'total' },
+            ]}
           />
         </Card>
-      </div>
+      </Spin>
     </div>
   );
 }

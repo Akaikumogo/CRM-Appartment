@@ -1,76 +1,99 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
+import { Empty } from 'antd';
+import type { BlockRow } from '@/api/blocks';
 
-export type roomDto = {
+export type SalesRoomRow = {
   _id: string;
-  block: 'block1' | 'block2' | 'block3' | 'block4';
+  blockId: string;
+  blockLabel: string;
   floor: number;
   room: number;
   status: 'empty' | 'broned' | 'selled';
+  areaSqm: string | null;
 };
 
-const generateMockRooms = (count: number, block: roomDto['block']): roomDto[] =>
-  Array.from({ length: count }, (_, i) => ({
-    _id: `${block}-${i + 1}`,
-    block,
-    floor: Math.floor(i / 5) + 1,
-    room: (i % 5) + 1,
-    status: ['empty', 'broned', 'selled'][
-      Math.floor(Math.random() * 3)
-    ] as roomDto['status']
-  }));
+type ChessBoardProps = {
+  blocks: BlockRow[];
+  rooms: SalesRoomRow[];
+  emptyHint?: string;
+};
 
-const RoomTable = () => {
-  const [allAppartments] = useState<roomDto[]>([
-    ...generateMockRooms(42, 'block1'),
-    ...generateMockRooms(70, 'block2'),
-    ...generateMockRooms(48, 'block3'),
-    ...generateMockRooms(42, 'block4')
-  ]);
+function cellClass(status: SalesRoomRow['status']) {
+  if (status === 'empty') {
+    return 'bg-gradient-to-br from-[#6bd2bc] to-[#5bc4a7] hover:from-[#5bc4a7] hover:to-[#4ab191]';
+  }
+  if (status === 'broned') {
+    return 'bg-gradient-to-br from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600';
+  }
+  return 'bg-gradient-to-br from-red-400 to-red-500 hover:from-red-500 hover:to-red-600';
+}
 
-  const ablock = allAppartments.filter((a) => a.block === 'block1');
-  const bblock = allAppartments.filter((a) => a.block === 'block2');
-  const cblock = allAppartments.filter((a) => a.block === 'block3');
-  const dblock = allAppartments.filter((a) => a.block === 'block4');
-
-  const mapF = (arr: roomDto[]) =>
-    arr?.map((apartment: roomDto, index: number) => (
-      <div
-        key={apartment._id}
-        className={`w-[85px] rounded-xl h-[75px] cursor-pointer hover:scale-105 transition-transform ${
-          apartment.status === 'empty'
-            ? 'bg-gradient-to-br from-[#6bd2bc] to-[#5bc4a7] hover:from-[#5bc4a7] hover:to-[#4ab191]'
-            : apartment.status === 'broned'
-            ? 'bg-gradient-to-br from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600'
-            : 'bg-gradient-to-br from-red-400 to-red-500 hover:from-red-500 hover:to-red-600'
-        }`}
-      >
-        <div className="flex items-center justify-center w-full h-full">
-          <h1 className="text-2xl font-bold text-white">{index + 1}</h1>
-        </div>
-      </div>
-    ));
-
-  const renderBlock = (title: string, blockRooms: roomDto[]) => (
-    <div className="w-[500px]">
-      <div className="w-full flex gap-1 text-center text-2xl font-bold ">
-        <h1 className="text-slate-900 dark:text-white">{title}</h1>
-      </div>
-      <div className="w-full grid grid-cols-5 gap-5">{mapF(blockRooms)}</div>
-    </div>
+export default function ChessBoard({
+  blocks,
+  rooms,
+  emptyHint,
+}: ChessBoardProps) {
+  const sortedBlocks = useMemo(
+    () => [...blocks].sort((a, b) => a.name.localeCompare(b.name)),
+    [blocks],
   );
+
+  if (!sortedBlocks.length) {
+    return (
+      <div className="flex min-h-[240px] w-full items-center justify-center p-6">
+        <Empty description={emptyHint ?? 'Bloklar mavjud emas'} />
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full h-full flex items-center justify-center rounded-lg">
-      <div className="relative overflow-auto flex flex-col gap-10 w-full h-full p-2">
-        <div className="grid grid-cols-4 gap-[80px] w-[2100px]">
-          {renderBlock('Block A', ablock)}
-          {renderBlock('Block B', bblock)}
-          {renderBlock('Block C', cblock)}
-          {renderBlock('Block D', dblock)}
+    <div className="flex h-full w-full items-center justify-center rounded-lg">
+      <div className="relative flex h-full w-full flex-col gap-10 overflow-auto p-2">
+        <div
+          className="flex flex-wrap justify-center gap-x-[48px] gap-y-10"
+          style={{ maxWidth: '100%' }}
+        >
+          {sortedBlocks.map((block) => {
+            const blockRooms = rooms.filter((r) => r.blockId === block.id);
+            const sorted = [...blockRooms].sort(
+              (a, b) => a.floor - b.floor || a.room - b.room,
+            );
+            return (
+              <div key={block.id} className="w-full min-w-[260px] max-w-[520px] sm:w-auto">
+                <div className="mb-2 text-center text-xl font-bold text-slate-900 dark:text-white">
+                  {block.name}
+                  {block.code ? (
+                    <span className="ml-2 text-base font-normal text-slate-500">
+                      ({block.code})
+                    </span>
+                  ) : null}
+                </div>
+                {!sorted.length ? (
+                  <Empty className="my-6" description="Bu blokda kvartira yo‘q" />
+                ) : (
+                  <div className="grid grid-cols-5 gap-3 sm:gap-5">
+                    {sorted.map((apartment) => (
+                      <div
+                        key={apartment._id}
+                        className={`h-[68px] w-[72px] cursor-pointer rounded-xl transition-transform hover:scale-105 sm:h-[75px] sm:w-[85px] ${cellClass(
+                          apartment.status,
+                        )}`}
+                        title={`${apartment.floor}-qavat · №${apartment.room}`}
+                      >
+                        <div className="flex h-full w-full items-center justify-center">
+                          <span className="text-xl font-bold text-white sm:text-2xl">
+                            {apartment.room || '—'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
   );
-};
-
-export default RoomTable;
+}

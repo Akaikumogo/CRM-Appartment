@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
   Users,
@@ -11,7 +11,6 @@ import {
   DollarSign,
   Calendar,
   Eye,
-  Edit
 } from 'lucide-react';
 import {
   Card,
@@ -31,11 +30,25 @@ import {
   message,
   Statistic,
   Progress,
-  Tooltip
+  Tooltip,
+  Space,
+  Spin,
 } from 'antd';
 
 import dayjs from 'dayjs';
 import type { ColumnsType } from 'antd/es/table';
+import {
+  BulkDeleteConfirmModal,
+  type BulkDeleteChoice,
+} from '@/components/BulkDeleteConfirmModal';
+import type { ApiClientRow } from '@/api/clients';
+import {
+  useClientMutations,
+  useClientsQuery,
+  useOrganizationsQuery,
+} from '@/hooks/api/crmHooks';
+import { can } from '@/lib/permissions';
+import { getSessionUser } from '@/lib/sessionUser';
 
 const { Title, Text } = Typography;
 const { Search: AntSearch } = Input;
@@ -73,249 +86,54 @@ export type PurchaseDto = {
   sellerName: string;
 };
 
-// Generate mock clients with multiple purchases
-const generateMockClients = (): ClientDto[] => [
-  {
-    id: 'client-001',
-    fullName: 'Alisher Karimov',
-    phoneNumber: '+998901234567',
-    email: 'alisher.karimov@gmail.com',
-    passportSeria: 'AD',
-    passportNumber: '1234567',
-    birthDate: '1985-05-15',
-    address: 'Toshkent shahar, Yunusobod tumani',
-    registrationDate: '2023-01-15',
+function mapApiClient(c: ApiClientRow): ClientDto {
+  return {
+    id: c.id,
+    fullName: c.fullName,
+    phoneNumber: c.phone,
+    passportSeria: '—',
+    passportNumber: '—',
+    registrationDate: c.createdAt.slice(0, 10),
     status: 'active',
-    totalPurchases: 3,
-    totalAmount: 285000,
-    lastPurchaseDate: '2024-02-20',
-    purchases: [
-      {
-        id: 'purchase-001',
-        apartmentNumber: 'A-1-12',
-        blockName: 'A Blok',
-        floorNumber: 1,
-        purchaseDate: '2023-01-15',
-        amount: 95000,
-        status: 'completed',
-        paymentStatus: 'paid',
-        progress: 100,
-        contractId: 'CNT-2023-001',
-        sellerName: 'Sardor Umarov'
-      },
-      {
-        id: 'purchase-002',
-        apartmentNumber: 'B-3-25',
-        blockName: 'B Blok',
-        floorNumber: 3,
-        purchaseDate: '2023-08-10',
-        amount: 120000,
-        status: 'completed',
-        paymentStatus: 'paid',
-        progress: 100,
-        contractId: 'CNT-2023-045',
-        sellerName: 'Dilshod Rahimov'
-      },
-      {
-        id: 'purchase-003',
-        apartmentNumber: 'C-2-18',
-        blockName: 'C Blok',
-        floorNumber: 2,
-        purchaseDate: '2024-02-20',
-        amount: 70000,
-        status: 'active',
-        paymentStatus: 'partial',
-        progress: 65,
-        contractId: 'CNT-2024-012',
-        sellerName: 'Aziza Karimova'
-      }
-    ]
-  },
-  {
-    id: 'client-002',
-    fullName: 'Malika Tosheva',
-    phoneNumber: '+998901234568',
-    email: 'malika.tosheva@mail.ru',
-    passportSeria: 'AD',
-    passportNumber: '2345678',
-    birthDate: '1990-12-03',
-    address: 'Toshkent shahar, Mirobod tumani',
-    registrationDate: '2023-03-20',
-    status: 'active',
-    totalPurchases: 2,
-    totalAmount: 195000,
-    lastPurchaseDate: '2024-01-15',
-    purchases: [
-      {
-        id: 'purchase-004',
-        apartmentNumber: 'D-1-05',
-        blockName: 'D Blok',
-        floorNumber: 1,
-        purchaseDate: '2023-03-20',
-        amount: 110000,
-        status: 'completed',
-        paymentStatus: 'paid',
-        progress: 100,
-        contractId: 'CNT-2023-015',
-        sellerName: 'Jasur Toshev'
-      },
-      {
-        id: 'purchase-005',
-        apartmentNumber: 'A-4-08',
-        blockName: 'A Blok',
-        floorNumber: 4,
-        purchaseDate: '2024-01-15',
-        amount: 85000,
-        status: 'active',
-        paymentStatus: 'partial',
-        progress: 80,
-        contractId: 'CNT-2024-003',
-        sellerName: 'Nigora Alieva'
-      }
-    ]
-  },
-  {
-    id: 'client-003',
-    fullName: 'Bobur Nazarov',
-    phoneNumber: '+998901234569',
-    email: 'bobur.nazarov@inbox.uz',
-    passportSeria: 'AD',
-    passportNumber: '3456789',
-    birthDate: '1988-07-25',
-    address: 'Toshkent shahar, Shayxontohur tumani',
-    registrationDate: '2023-06-10',
-    status: 'active',
-    totalPurchases: 1,
-    totalAmount: 75000,
-    lastPurchaseDate: '2023-06-10',
-    purchases: [
-      {
-        id: 'purchase-006',
-        apartmentNumber: 'B-2-15',
-        blockName: 'B Blok',
-        floorNumber: 2,
-        purchaseDate: '2023-06-10',
-        amount: 75000,
-        status: 'completed',
-        paymentStatus: 'paid',
-        progress: 100,
-        contractId: 'CNT-2023-032',
-        sellerName: 'Sardor Umarov'
-      }
-    ]
-  },
-  {
-    id: 'client-004',
-    fullName: 'Dilorom Ahmadova',
-    phoneNumber: '+998901234570',
-    email: 'dilorom.ahmadova@gmail.com',
-    passportSeria: 'AD',
-    passportNumber: '4567890',
-    birthDate: '1992-04-18',
-    address: 'Toshkent shahar, Olmazor tumani',
-    registrationDate: '2023-09-05',
-    status: 'active',
-    totalPurchases: 4,
-    totalAmount: 420000,
-    lastPurchaseDate: '2024-03-01',
-    purchases: [
-      {
-        id: 'purchase-007',
-        apartmentNumber: 'A-3-07',
-        blockName: 'A Blok',
-        floorNumber: 3,
-        purchaseDate: '2023-09-05',
-        amount: 105000,
-        status: 'completed',
-        paymentStatus: 'paid',
-        progress: 100,
-        contractId: 'CNT-2023-058',
-        sellerName: 'Dilshod Rahimov'
-      },
-      {
-        id: 'purchase-008',
-        apartmentNumber: 'B-1-03',
-        blockName: 'B Blok',
-        floorNumber: 1,
-        purchaseDate: '2023-11-20',
-        amount: 90000,
-        status: 'completed',
-        paymentStatus: 'paid',
-        progress: 100,
-        contractId: 'CNT-2023-078',
-        sellerName: 'Aziza Karimova'
-      },
-      {
-        id: 'purchase-009',
-        apartmentNumber: 'C-4-22',
-        blockName: 'C Blok',
-        floorNumber: 4,
-        purchaseDate: '2024-01-10',
-        amount: 125000,
-        status: 'completed',
-        paymentStatus: 'paid',
-        progress: 100,
-        contractId: 'CNT-2024-002',
-        sellerName: 'Jasur Toshev'
-      },
-      {
-        id: 'purchase-010',
-        apartmentNumber: 'D-3-18',
-        blockName: 'D Blok',
-        floorNumber: 3,
-        purchaseDate: '2024-03-01',
-        amount: 100000,
-        status: 'active',
-        paymentStatus: 'partial',
-        progress: 45,
-        contractId: 'CNT-2024-018',
-        sellerName: 'Sardor Umarov'
-      }
-    ]
-  },
-  {
-    id: 'client-005',
-    fullName: 'Rustam Yusupov',
-    phoneNumber: '+998901234571',
-    passportSeria: 'AD',
-    passportNumber: '5678901',
-    birthDate: '1987-11-12',
-    address: 'Toshkent shahar, Yashnobod tumani',
-    registrationDate: '2024-01-20',
-    status: 'inactive',
-    totalPurchases: 1,
+    totalPurchases: 0,
     totalAmount: 0,
-    lastPurchaseDate: '2024-01-20',
-    purchases: [
-      {
-        id: 'purchase-011',
-        apartmentNumber: 'A-2-09',
-        blockName: 'A Blok',
-        floorNumber: 2,
-        purchaseDate: '2024-01-20',
-        amount: 80000,
-        status: 'cancelled',
-        paymentStatus: 'unpaid',
-        progress: 10,
-        contractId: 'CNT-2024-005',
-        sellerName: 'Nigora Alieva'
-      }
-    ]
-  }
-];
+    purchases: [],
+    lastPurchaseDate: undefined,
+  };
+}
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<ClientDto[]>(generateMockClients());
-  const [filteredClients, setFilteredClients] = useState<ClientDto[]>(
-    generateMockClients()
-  );
+  const user = getSessionUser();
+  const perms = user?.effectivePermissions;
+  const canBulkDelete =
+    can(perms, user?.role, 'clients.delete') &&
+    ['superadmin', 'org_admin'].includes(user?.role ?? '');
+  const canWriteClient = can(perms, user?.role, 'clients.write');
+
+  const [filteredClients, setFilteredClients] = useState<ClientDto[]>([]);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
   const [selectedClient, setSelectedClient] = useState<ClientDto | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [listOrgId, setListOrgId] = useState<string | undefined>();
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [form] = Form.useForm();
 
+  const clientListOrgId =
+    user?.role === 'superadmin' ? listOrgId : undefined;
+  const { data: apiClientsRaw = [], isLoading: loadingClients } =
+    useClientsQuery(clientListOrgId, true);
+  const { data: orgs = [] } = useOrganizationsQuery(
+    user?.role === 'superadmin',
+  );
+  const { create, bulkRemove } = useClientMutations();
+
+  const clients = useMemo(
+    () => apiClientsRaw.map(mapApiClient),
+    [apiClientsRaw],
+  );
 
   // Filter clients
   useEffect(() => {
@@ -344,10 +162,24 @@ export default function ClientsPage() {
     inactive: clients.filter((c) => c.status === 'inactive').length,
     totalPurchases: clients.reduce((acc, c) => acc + c.totalPurchases, 0),
     totalAmount: clients.reduce((acc, c) => acc + c.totalAmount, 0),
-    avgPurchases: Math.round(
-      clients.reduce((acc, c) => acc + c.totalPurchases, 0) / clients.length
-    )
+    avgPurchases:
+      clients.length > 0
+        ? Math.round(
+            clients.reduce((acc, c) => acc + c.totalPurchases, 0) /
+              clients.length,
+          )
+        : 0,
   };
+
+  const clientsBulkScopeText = useMemo(() => {
+    if (user?.role === 'superadmin' && listOrgId) {
+      return 'Tanlangan tashkilotdagi barcha mijozlar (API organizationId bilan bir xil doira).';
+    }
+    if (user?.role === 'superadmin') {
+      return 'Barcha tashkilotlardagi mijozlar (superadmin global doira).';
+    }
+    return 'Tashkilotingizdagi barcha mijozlar (API ro‘yxati bilan bir xil).';
+  }, [user?.role, listOrgId]);
 
   // Status colors
   const getStatusColor = (status: string) => {
@@ -601,29 +433,55 @@ export default function ClientsPage() {
                 }}
               />
             </Tooltip>
-            <Tooltip title="Tahrirlash">
-              <Button type="text" icon={<Edit size={16} />} />
-            </Tooltip>
           </div>
         );
       }
     }
   ];
 
-  const handleAddClient = (values: any) => {
-    const newClient: ClientDto = {
-      id: Date.now().toString(),
-      ...values,
-      registrationDate: new Date().toISOString().split('T')[0],
-      status: 'active',
-      totalPurchases: 0,
-      totalAmount: 0,
-      purchases: []
-    };
-    setClients([...clients, newClient]);
-    setIsAddModalVisible(false);
-    form.resetFields();
-    message.success("Mijoz muvaffaqiyatli qo'shildi!");
+  const handleAddClient = async (values: any) => {
+    try {
+      const orgId =
+        user?.role === 'superadmin'
+          ? values.organizationId
+          : user?.organizationId;
+      if (!orgId) {
+        message.error('Tashkilot tanlang yoki sessiyada org yo‘q');
+        return;
+      }
+      await create.mutateAsync({
+        orgId,
+        body: {
+          fullName: values.fullName,
+          phone: String(values.phoneNumber).replace(/\s/g, ''),
+        },
+      });
+      setIsAddModalVisible(false);
+      form.resetFields();
+      message.success("Mijoz qo'shildi");
+    } catch {
+      message.error('Qo‘shib bo‘lmadi (telefon formati / ruxsat)');
+    }
+  };
+
+  const runBulkDeleteClients = async (choice: BulkDeleteChoice) => {
+    try {
+      if (choice === 'selected') {
+        await bulkRemove.mutateAsync({ ids: selectedRowKeys });
+      } else {
+        const body: { deleteAllInScope: true; organizationId?: string } = {
+          deleteAllInScope: true,
+        };
+        if (user?.role === 'superadmin' && listOrgId) {
+          body.organizationId = listOrgId;
+        }
+        await bulkRemove.mutateAsync(body);
+      }
+      message.success('O‘chirildi');
+      setSelectedRowKeys([]);
+    } catch {
+      message.error('O‘chirishda xatolik');
+    }
   };
 
   return (
@@ -717,7 +575,7 @@ export default function ClientsPage() {
       <div>
         <Card className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800">
           <Row gutter={[16, 16]} align="middle">
-            <Col xs={24} sm={8}>
+            <Col xs={24} sm={user?.role === 'superadmin' ? 6 : 8}>
               <AntSearch
                 placeholder="Ism, telefon yoki email bo'yicha qidirish..."
                 allowClear
@@ -726,6 +584,26 @@ export default function ClientsPage() {
                 prefix={<Search size={16} />}
               />
             </Col>
+            {user?.role === 'superadmin' ? (
+              <Col xs={24} sm={6}>
+                <Select
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder="Tashkilot (ro‘yxat filtri)"
+                  style={{ width: '100%' }}
+                  value={listOrgId}
+                  onChange={(v) => {
+                    setListOrgId(v);
+                    setSelectedRowKeys([]);
+                  }}
+                  options={orgs.map((o) => ({
+                    value: o.id,
+                    label: o.name,
+                  }))}
+                />
+              </Col>
+            ) : null}
             <Col xs={24} sm={4}>
               <Select
                 placeholder="Holat"
@@ -739,7 +617,7 @@ export default function ClientsPage() {
                 <Option value="inactive">Nofaol</Option>
               </Select>
             </Col>
-            <Col xs={24} sm={12}>
+            <Col xs={24} sm={user?.role === 'superadmin' ? 8 : 12}>
               <div className="flex justify-end">
                 <Text className="text-slate-600 dark:text-slate-400">
                   Jami: {filteredClients.length} ta mijoz • O'rtacha:{' '}
@@ -760,25 +638,43 @@ export default function ClientsPage() {
               <Title level={4} className="!!text-white !mb-0">
                 Mijozlar Ro'yxati
               </Title>
-              <Button
-                type="primary"
-                size="large"
-                icon={<UserPlus size={18} />}
-                onClick={() => setIsAddModalVisible(true)}
-                style={{
-                  background: '#6bd2bc',
-                  border: 'none'
-                }}
-              >
-                Yangi Mijoz
-              </Button>
+              <Space wrap>
+                {canBulkDelete ? (
+                  <Button danger onClick={() => setBulkDeleteOpen(true)}>
+                    O‘chirish
+                  </Button>
+                ) : null}
+                {canWriteClient ? (
+                  <Button
+                    type="primary"
+                    size="large"
+                    icon={<UserPlus size={18} />}
+                    onClick={() => setIsAddModalVisible(true)}
+                    style={{
+                      background: '#6bd2bc',
+                      border: 'none',
+                    }}
+                  >
+                    Yangi Mijoz
+                  </Button>
+                ) : null}
+              </Space>
             </div>
           }
         >
-          <Table
+          <Spin spinning={loadingClients}>
+            <Table
             columns={columns}
             dataSource={filteredClients}
             rowKey="id"
+            rowSelection={
+              canBulkDelete
+                ? {
+                    selectedRowKeys,
+                    onChange: (keys) => setSelectedRowKeys(keys as string[]),
+                  }
+                : undefined
+            }
             expandable={{
               expandedRowRender: (record) => (
                 <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
@@ -819,7 +715,8 @@ export default function ClientsPage() {
             }}
             scroll={{ x: 1000 }}
             size="middle"
-          />
+            />
+          </Spin>
         </Card>
       </div>
 
@@ -840,6 +737,20 @@ export default function ClientsPage() {
         width={600}
       >
         <Form form={form} layout="vertical" onFinish={handleAddClient}>
+          {user?.role === 'superadmin' ? (
+            <Form.Item
+              name="organizationId"
+              label="Tashkilot"
+              rules={[{ required: true, message: 'Tanlang' }]}
+            >
+              <Select
+                showSearch
+                optionFilterProp="label"
+                placeholder="Tashkilot"
+                options={orgs.map((o) => ({ value: o.id, label: o.name }))}
+              />
+            </Form.Item>
+          ) : null}
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
@@ -878,24 +789,12 @@ export default function ClientsPage() {
 
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item
-                name="passportSeria"
-                label="Passport seriya"
-                rules={[
-                  { required: true, message: 'Passport seriyasini kiriting' }
-                ]}
-              >
+              <Form.Item name="passportSeria" label="Passport seriya (ixtiyoriy)">
                 <Input placeholder="AD" />
               </Form.Item>
             </Col>
             <Col span={16}>
-              <Form.Item
-                name="passportNumber"
-                label="Passport raqam"
-                rules={[
-                  { required: true, message: 'Passport raqamini kiriting' }
-                ]}
-              >
+              <Form.Item name="passportNumber" label="Passport raqam (ixtiyoriy)">
                 <Input placeholder="1234567" />
               </Form.Item>
             </Col>
@@ -1052,6 +951,15 @@ export default function ClientsPage() {
           </div>
         )}
       </Modal>
+
+      <BulkDeleteConfirmModal
+        open={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        entityLabel="Mijozlar"
+        selectedCount={selectedRowKeys.length}
+        scopeDescription={clientsBulkScopeText}
+        onConfirm={runBulkDeleteClients}
+      />
     </div>
   );
 }

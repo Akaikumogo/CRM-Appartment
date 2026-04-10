@@ -1,12 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   FileText,
   Plus,
   Search,
   Filter,
   Eye,
-  Edit,
   Download,
   Calendar,
   DollarSign,
@@ -32,10 +31,24 @@ import {
   Progress,
   Space,
   Tooltip,
-  Avatar
+  Avatar,
+  Spin
 } from 'antd';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
+import {
+  BulkDeleteConfirmModal,
+  type BulkDeleteChoice,
+} from '@/components/BulkDeleteConfirmModal';
+import type { ApartmentWithContext } from '@/api/salesInventory';
+import {
+  useClientsQuery,
+  useContractMutations,
+  useContractsQuery,
+  useSalesInventoryQuery,
+  useUsersQuery,
+} from '@/hooks/api/crmHooks';
+import { getSessionUser } from '@/lib/sessionUser';
 
 const { Title, Text } = Typography;
 const { Search: AntSearch } = Input;
@@ -64,117 +77,93 @@ export type ContractDto = {
   progress: number;
 };
 
-// Generate mock contracts
-const generateMockContracts = (): ContractDto[] => [
-  {
-    contractId: 'CNT-2024-001',
-    appartmentId: 'apt-001',
-    clientId: 'client-001',
-    userId: 'user-001',
-    contractDate: '2024-01-15',
-    createdAt: '2024-01-15T10:30:00Z',
-    updatedAt: '2024-01-20T14:45:00Z',
-    companyId: 'comp-001',
-    clientName: 'Alisher Karimov',
-    clientPhone: '+998901234567',
-    apartmentNumber: 'A-1-12',
-    blockName: 'A Blok',
-    floorNumber: 1,
-    sellerName: 'Sardor Umarov',
-    contractAmount: 95000,
-    status: 'active',
-    paymentStatus: 'partial',
-    progress: 65
-  },
-  {
-    contractId: 'CNT-2024-002',
-    appartmentId: 'apt-002',
-    clientId: 'client-002',
-    userId: 'user-002',
-    contractDate: '2024-01-20',
-    createdAt: '2024-01-20T09:15:00Z',
-    updatedAt: '2024-01-25T16:20:00Z',
-    companyId: 'comp-001',
-    clientName: 'Malika Tosheva',
-    clientPhone: '+998901234568',
-    apartmentNumber: 'B-3-25',
-    blockName: 'B Blok',
-    floorNumber: 3,
-    sellerName: 'Dilshod Rahimov',
-    contractAmount: 120000,
-    status: 'completed',
-    paymentStatus: 'paid',
-    progress: 100
-  },
-  {
-    contractId: 'CNT-2024-003',
-    appartmentId: 'apt-003',
-    clientId: 'client-003',
-    userId: 'user-003',
-    contractDate: '2024-02-01',
-    createdAt: '2024-02-01T11:00:00Z',
-    updatedAt: '2024-02-05T13:30:00Z',
-    companyId: 'comp-001',
-    clientName: 'Bobur Nazarov',
-    clientPhone: '+998901234569',
-    apartmentNumber: 'C-2-18',
-    blockName: 'C Blok',
-    floorNumber: 2,
-    sellerName: 'Aziza Karimova',
-    contractAmount: 85000,
-    status: 'pending',
-    paymentStatus: 'unpaid',
-    progress: 25
-  },
-  {
-    contractId: 'CNT-2024-004',
-    appartmentId: 'apt-004',
-    clientId: 'client-004',
-    userId: 'user-004',
-    contractDate: '2024-02-10',
-    createdAt: '2024-02-10T14:20:00Z',
-    updatedAt: '2024-02-15T10:15:00Z',
-    companyId: 'comp-001',
-    clientName: 'Dilorom Ahmadova',
-    clientPhone: '+998901234570',
-    apartmentNumber: 'D-1-05',
-    blockName: 'D Blok',
-    floorNumber: 1,
-    sellerName: 'Jasur Toshev',
-    contractAmount: 110000,
-    status: 'active',
-    paymentStatus: 'partial',
-    progress: 80
-  },
-  {
-    contractId: 'CNT-2024-005',
-    appartmentId: 'apt-005',
-    clientId: 'client-005',
-    userId: 'user-005',
-    contractDate: '2024-02-20',
-    createdAt: '2024-02-20T16:45:00Z',
-    updatedAt: '2024-02-25T12:00:00Z',
-    companyId: 'comp-001',
-    clientName: 'Rustam Yusupov',
-    clientPhone: '+998901234571',
-    apartmentNumber: 'A-4-08',
-    blockName: 'A Blok',
-    floorNumber: 4,
-    sellerName: 'Nigora Alieva',
-    contractAmount: 75000,
-    status: 'cancelled',
-    paymentStatus: 'unpaid',
-    progress: 10
+type ApiContractRow = {
+  id: string;
+  apartmentId: string;
+  clientId: string;
+  sellerId?: string | null;
+  contractDate: string;
+  createdAt: string;
+  updatedAt: string;
+  organizationId?: string;
+  amount: number;
+  status?: string;
+  paymentStatus?: string;
+  progressPercent?: number;
+  client?: { fullName?: string; phone?: string };
+  seller?: { fullName?: string; email?: string };
+  apartment?: {
+    number?: string | number;
+    floor?: { level?: number; block?: { name?: string; code?: string } };
+  };
+};
+
+function coerceContractStatus(s: string | undefined): ContractDto['status'] {
+  if (
+    s === 'active' ||
+    s === 'completed' ||
+    s === 'cancelled' ||
+    s === 'pending'
+  ) {
+    return s;
   }
-];
+  return 'pending';
+}
+
+function coercePaymentStatus(s: string | undefined): ContractDto['paymentStatus'] {
+  if (s === 'paid' || s === 'partial' || s === 'unpaid') {
+    return s;
+  }
+  return 'unpaid';
+}
+
+function mapApiContract(c: ApiContractRow): ContractDto {
+  const apt = c.apartment;
+  const block = apt?.floor?.block;
+  return {
+    contractId: c.id,
+    appartmentId: c.apartmentId,
+    clientId: c.clientId,
+    userId: c.sellerId ?? '',
+    contractDate: c.contractDate,
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
+    companyId: c.organizationId ?? '',
+    clientName: c.client?.fullName ?? '',
+    clientPhone: c.client?.phone ?? '',
+    apartmentNumber: String(apt?.number ?? ''),
+    blockName: block?.name ?? block?.code ?? '',
+    floorNumber: apt?.floor?.level ?? 0,
+    sellerName: c.seller?.fullName || c.seller?.email || '—',
+    contractAmount: Number(c.amount),
+    status: coerceContractStatus(c.status),
+    paymentStatus: coercePaymentStatus(c.paymentStatus),
+    progress: c.progressPercent ?? 0,
+  };
+}
+
+function apartmentOptionLabel(a: ApartmentWithContext) {
+  const b = a.floor?.block;
+  const block = b
+    ? `${b.name}${b.code ? ` (${b.code})` : ''}`
+    : 'Blok';
+  const fl = a.floor?.level ?? '?';
+  return `${block} · ${fl}-qat · №${a.number} · ${a.status}`;
+}
 
 export default function ContractsPage() {
-  const [contracts, setContracts] = useState<ContractDto[]>(
-    generateMockContracts()
+  const { data: contractsRaw = [], isLoading: loading } = useContractsQuery();
+  const { create, bulkRemove } = useContractMutations();
+
+  const contracts = useMemo(
+    () => (contractsRaw as ApiContractRow[]).map(mapApiContract),
+    [contractsRaw],
   );
+
   const [filteredContracts, setFilteredContracts] = useState<ContractDto[]>(
-    generateMockContracts()
+    [],
   );
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
   const [selectedContract, setSelectedContract] = useState<ContractDto | null>(
@@ -184,8 +173,72 @@ export default function ContractsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [form] = Form.useForm();
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+
+  const { data: inventory, isLoading: inventoryLoading } =
+    useSalesInventoryQuery(isAddModalVisible);
+  const { data: usersList = [], isLoading: usersLoading } =
+    useUsersQuery(isAddModalVisible);
+  const { data: clientsList = [], isLoading: clientsLoading } = useClientsQuery(
+    undefined,
+    isAddModalVisible,
+  );
+
+  const clientOptions = useMemo(
+    () =>
+      clientsList.map((c) => ({
+        value: c.id,
+        label: `${c.fullName} · ${c.phone}`,
+      })),
+    [clientsList],
+  );
+
+  const apartmentOptions = useMemo(() => {
+    const apts = inventory?.apartments ?? [];
+    return [...apts]
+      .sort((x, y) => {
+        const bx = x.floor?.block?.name ?? '';
+        const by = y.floor?.block?.name ?? '';
+        if (bx !== by) {
+          return bx.localeCompare(by);
+        }
+        const lx = x.floor?.level ?? 0;
+        const ly = y.floor?.level ?? 0;
+        if (lx !== ly) {
+          return lx - ly;
+        }
+        return String(x.number).localeCompare(String(y.number), undefined, {
+          numeric: true,
+        });
+      })
+      .map((a) => ({
+        value: a.id,
+        label: apartmentOptionLabel(a),
+      }));
+  }, [inventory?.apartments]);
+
+  const sellerOptions = useMemo(
+    () =>
+      usersList.map((u) => ({
+        value: u.id,
+        label: `${u.fullName || u.email} (${u.email}) · ${u.role}`,
+      })),
+    [usersList],
+  );
+
+  useEffect(() => {
+    if (!isAddModalVisible) {
+      return;
+    }
+    const u = getSessionUser();
+    form.setFieldsValue({
+      sellerId: u?.id,
+      contractDate: dayjs(),
+    });
+  }, [isAddModalVisible, form]);
 
   const navigate = useNavigate();
+
   // Filter contracts
   useEffect(() => {
     let filtered = contracts;
@@ -432,32 +485,51 @@ export default function ContractsPage() {
               onClick={() => {
                 setSelectedContract(record);
                 setIsViewModalVisible(true);
-                navigate(`${record.contractId}`);
+                navigate(`/dashboard/contracts/${record.contractId}`);
               }}
             />
-          </Tooltip>
-          <Tooltip title="Tahrirlash">
-            <Button type="text" icon={<Edit size={16} />} />
           </Tooltip>
         </Space>
       )
     }
   ];
 
-  const handleAddContract = (values: any) => {
-    const newContract: ContractDto = {
-      contractId: `CNT-2024-${String(contracts.length + 1).padStart(3, '0')}`,
-      ...values,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      status: 'pending',
-      paymentStatus: 'unpaid',
-      progress: 0
-    };
-    setContracts([...contracts, newContract]);
-    setIsAddModalVisible(false);
-    form.resetFields();
-    message.success("Shartnoma muvaffaqiyatli qo'shildi!");
+  const handleAddContract = async (values: any) => {
+    try {
+      await create.mutateAsync({
+        apartmentId: values.apartmentId,
+        clientId: values.clientId,
+        sellerId: values.sellerId || undefined,
+        contractDate: dayjs(values.contractDate).format('YYYY-MM-DD'),
+        amount: Number(values.contractAmount),
+        status: values.status ?? 'pending',
+        paymentStatus: values.paymentStatus ?? 'unpaid',
+        progressPercent: values.progress ? Number(values.progress) : 0,
+      });
+      setIsAddModalVisible(false);
+      form.resetFields();
+      message.success("Shartnoma muvaffaqiyatli qo'shildi!");
+    } catch {
+      message.error('Saqlashda xatolik (tanlovlar va ruxsatlarni tekshiring)');
+    }
+  };
+
+  const canBulkDelete = ['superadmin', 'org_admin'].includes(
+    getSessionUser()?.role ?? '',
+  );
+
+  const runBulkDeleteContracts = async (choice: BulkDeleteChoice) => {
+    try {
+      if (choice === 'selected') {
+        await bulkRemove.mutateAsync({ ids: selectedRowKeys });
+      } else {
+        await bulkRemove.mutateAsync({ deleteAllInScope: true });
+      }
+      message.success('O‘chirildi');
+      setSelectedRowKeys([]);
+    } catch {
+      message.error('O‘chirishda xatolik');
+    }
   };
 
   return (
@@ -611,35 +683,56 @@ export default function ContractsPage() {
               >
                 Shartnomalar Ro'yxati
               </Title>{' '}
-              <Button
-                type="primary"
-                size="large"
-                icon={<Plus size={18} />}
-                onClick={() => setIsAddModalVisible(true)}
-                style={{
-                  background: '#6bd2bc',
-                  border: 'none'
-                }}
-              >
-                Yangi Shartnoma
-              </Button>
+              <Space>
+                {canBulkDelete && (
+                  <Button danger onClick={() => setBulkDeleteOpen(true)}>
+                    O‘chirish
+                  </Button>
+                )}
+                <Button
+                  type="primary"
+                  size="large"
+                  icon={<Plus size={18} />}
+                  onClick={() => {
+                    form.resetFields();
+                    setIsAddModalVisible(true);
+                  }}
+                  style={{
+                    background: '#6bd2bc',
+                    border: 'none'
+                  }}
+                >
+                  Yangi Shartnoma
+                </Button>
+              </Space>
             </div>
           }
         >
-          <Table
-            columns={columns}
-            dataSource={filteredContracts}
-            rowKey="contractId"
-            pagination={{
-              pageSize: 10,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total, range) =>
-                `${range[0]}-${range[1]} / ${total} ta`
-            }}
-            scroll={{ x: 1200 }}
-            size="middle"
-          />
+          <Spin spinning={loading}>
+            <Table
+              columns={columns}
+              dataSource={filteredContracts}
+              rowKey="contractId"
+              rowSelection={
+                canBulkDelete
+                  ? {
+                      selectedRowKeys,
+                      onChange: (keys) =>
+                        setSelectedRowKeys(keys as string[]),
+                    }
+                  : undefined
+              }
+              pagination={{
+                pageSize: 10,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total, range) =>
+                  `${range[0]}-${range[1]} / ${total} ta`
+              }}
+              scroll={{ x: 1200 }}
+              size="middle"
+            />
+          </Spin>
         </Card>
       </div>
 
@@ -660,93 +753,52 @@ export default function ContractsPage() {
         width={800}
       >
         <Form form={form} layout="vertical" onFinish={handleAddContract}>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="clientName"
-                label="Mijoz ismi"
-                rules={[{ required: true, message: 'Mijoz ismini kiriting' }]}
-              >
-                <Input placeholder="Mijoz ismini kiriting" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="clientPhone"
-                label="Mijoz telefoni"
-                rules={[
-                  { required: true, message: 'Telefon raqamini kiriting' }
-                ]}
-              >
-                <Input placeholder="+998901234567" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="apartmentNumber"
-                label="Kvartira raqami"
-                rules={[
-                  { required: true, message: 'Kvartira raqamini kiriting' }
-                ]}
-              >
-                <Input placeholder="A-1-12" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="blockName"
-                label="Blok nomi"
-                rules={[{ required: true, message: 'Blok nomini kiriting' }]}
-              >
-                <Select placeholder="Blokni tanlang">
-                  <Option value="A Blok">A Blok</Option>
-                  <Option value="B Blok">B Blok</Option>
-                  <Option value="C Blok">C Blok</Option>
-                  <Option value="D Blok">D Blok</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="floorNumber"
-                label="Qavat raqami"
-                rules={[{ required: true, message: 'Qavat raqamini kiriting' }]}
-              >
-                <Input type="number" placeholder="1" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="sellerName"
-                label="Sotuvchi"
-                rules={[{ required: true, message: 'Sotuvchini tanlang' }]}
-              >
-                <Select placeholder="Sotuvchini tanlang">
-                  <Option value="Sardor Umarov">Sardor Umarov</Option>
-                  <Option value="Dilshod Rahimov">Dilshod Rahimov</Option>
-                  <Option value="Aziza Karimova">Aziza Karimova</Option>
-                  <Option value="Jasur Toshev">Jasur Toshev</Option>
-                  <Option value="Nigora Alieva">Nigora Alieva</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="contractAmount"
-                label="Shartnoma summasi"
-                rules={[{ required: true, message: 'Summani kiriting' }]}
-              >
-                <Input type="number" placeholder="95000" prefix="$" />
-              </Form.Item>
-            </Col>
-          </Row>
-
+          <Text type="secondary" className="mb-2 block text-sm">
+            Kvartira va mijozni ro‘yxatdan tanlang. Sotuvchi sukut bo‘yicha siz
+            (joriy akkaunt).
+          </Text>
+          <Form.Item
+            name="apartmentId"
+            label="Kvartira"
+            rules={[{ required: true, message: 'Kvartira tanlang' }]}
+          >
+            <Select
+              showSearch
+              placeholder="Blok / qavat / raqam bo‘yicha qidiring"
+              options={apartmentOptions}
+              optionFilterProp="label"
+              loading={inventoryLoading}
+              allowClear
+            />
+          </Form.Item>
+          <Form.Item
+            name="clientId"
+            label="Mijoz"
+            rules={[{ required: true, message: 'Mijoz tanlang' }]}
+          >
+            <Select
+              showSearch
+              placeholder="Ism yoki telefon bo‘yicha qidiring"
+              options={clientOptions}
+              optionFilterProp="label"
+              loading={clientsLoading}
+              allowClear
+            />
+          </Form.Item>
+          <Form.Item
+            name="sellerId"
+            label="Sotuvchi"
+            tooltip="Sukut: tizimga kirgan foydalanuvchi"
+          >
+            <Select
+              showSearch
+              allowClear
+              placeholder="Sotuvchi"
+              options={sellerOptions}
+              optionFilterProp="label"
+              loading={usersLoading}
+            />
+          </Form.Item>
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
@@ -758,8 +810,42 @@ export default function ContractsPage() {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="companyId" label="Kompaniya ID">
-                <Input placeholder="comp-001" />
+              <Form.Item
+                name="contractAmount"
+                label="Summa"
+                rules={[{ required: true, message: 'Summani kiriting' }]}
+              >
+                <Input type="number" placeholder="95000" prefix="$" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="status" label="Holat" initialValue="pending">
+                <Select>
+                  <Option value="pending">Kutilmoqda</Option>
+                  <Option value="active">Faol</Option>
+                  <Option value="completed">Tugallangan</Option>
+                  <Option value="cancelled">Bekor</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="paymentStatus"
+                label="To‘lov"
+                initialValue="unpaid"
+              >
+                <Select>
+                  <Option value="unpaid">To‘lanmagan</Option>
+                  <Option value="partial">Qisman</Option>
+                  <Option value="paid">To‘langan</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="progress" label="Progress %" initialValue={0}>
+                <Input type="number" min={0} max={100} />
               </Form.Item>
             </Col>
           </Row>
@@ -935,6 +1021,15 @@ export default function ContractsPage() {
           </div>
         )}
       </Modal>
+
+      <BulkDeleteConfirmModal
+        open={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        entityLabel="Shartnomalar"
+        selectedCount={selectedRowKeys.length}
+        scopeDescription="Ruxsat doirasidagi barcha shartnomalar (API ro‘yxati bilan bir xil filial/tashkilot chegarasi; joriy sahifa filtrlari emas)."
+        onConfirm={runBulkDeleteContracts}
+      />
     </div>
   );
 }

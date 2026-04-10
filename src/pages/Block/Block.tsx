@@ -1,918 +1,513 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import { useState, useEffect } from 'react';
-
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Building2,
-  Plus,
-  Search,
-  Filter,
-  Eye,
-  Edit,
-  Home,
-  Users
-} from 'lucide-react';
+  BulkDeleteConfirmModal,
+  type BulkDeleteChoice,
+} from '@/components/BulkDeleteConfirmModal';
+import { Building2, Copy, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
-  Card,
-  Row,
-  Col,
-  Typography,
   Button,
-  Table,
-  Tag,
-  Badge,
-  Input,
-  Select,
-  Modal,
+  Card,
   Form,
-  message,
-  Statistic,
-  Progress,
+  Input,
+  Modal,
+  Popconfirm,
+  Select,
   Space,
-  Tooltip
+  Table,
+  Tooltip,
+  Typography,
+  message,
 } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import type { BlockRow } from '@/api/blocks';
+import type { BranchMgmtRow } from '@/api/branches';
 import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip
-} from 'recharts';
+  useBlockMutations,
+  useBlocksQuery,
+  useBranchQuery,
+  useBranchesOrgQuery,
+} from '@/hooks/api/crmHooks';
+import { can, refreshAuthMe } from '@/lib/permissions';
+import { getSessionUser } from '@/lib/sessionUser';
+import { BlockHierarchyPanel } from './BlockHierarchyPanel';
 
 const { Title, Text } = Typography;
-const { Search: AntSearch } = Input;
-const { Option } = Select;
-
-// Block data type
-export type BlockDto = {
-  id: string;
-  name: string;
-  totalFloors: number;
-  totalApartments: number;
-  soldApartments: number;
-  reservedApartments: number;
-  availableApartments: number;
-  totalRevenue: number;
-  constructionStatus: 'planning' | 'construction' | 'completed';
-  completionPercentage: number;
-  startDate: string;
-  expectedCompletionDate: string;
-  description?: string;
-  floors: FloorDto[];
-};
-
-export type FloorDto = {
-  id: string;
-  floorNumber: number;
-  totalApartments: number;
-  soldApartments: number;
-  reservedApartments: number;
-  availableApartments: number;
-};
-
-// Generate mock blocks
-const generateMockBlocks = (): BlockDto[] => [
-  {
-    id: 'block-a',
-    name: 'A Blok',
-    totalFloors: 7,
-    totalApartments: 42,
-    soldApartments: 28,
-    reservedApartments: 8,
-    availableApartments: 6,
-    totalRevenue: 2650000,
-    constructionStatus: 'completed',
-    completionPercentage: 100,
-    startDate: '2022-01-15',
-    expectedCompletionDate: '2023-12-20',
-    description:
-      'Lux darajadagi turar joy majmuasi, barcha zamonaviy qulayliklar bilan',
-    floors: Array.from({ length: 7 }, (_, i) => ({
-      id: `floor-a-${i + 1}`,
-      floorNumber: i + 1,
-      totalApartments: 6,
-      soldApartments: Math.floor(Math.random() * 4) + 2,
-      reservedApartments: Math.floor(Math.random() * 2) + 1,
-      availableApartments: Math.floor(Math.random() * 2)
-    }))
-  },
-  {
-    id: 'block-b',
-    name: 'B Blok',
-    totalFloors: 10,
-    totalApartments: 70,
-    soldApartments: 45,
-    reservedApartments: 15,
-    availableApartments: 10,
-    totalRevenue: 4200000,
-    constructionStatus: 'completed',
-    completionPercentage: 100,
-    startDate: '2022-03-01',
-    expectedCompletionDate: '2024-02-15',
-    description: 'Oilaviy turar joy, keng xonalar va yashil hudud',
-    floors: Array.from({ length: 10 }, (_, i) => ({
-      id: `floor-b-${i + 1}`,
-      floorNumber: i + 1,
-      totalApartments: 7,
-      soldApartments: Math.floor(Math.random() * 5) + 2,
-      reservedApartments: Math.floor(Math.random() * 3) + 1,
-      availableApartments: Math.floor(Math.random() * 3)
-    }))
-  },
-  {
-    id: 'block-c',
-    name: 'C Blok',
-    totalFloors: 8,
-    totalApartments: 48,
-    soldApartments: 32,
-    reservedApartments: 10,
-    availableApartments: 6,
-    totalRevenue: 3100000,
-    constructionStatus: 'construction',
-    completionPercentage: 75,
-    startDate: '2023-01-10',
-    expectedCompletionDate: '2024-08-30',
-    description: 'Zamonaviy arxitektura va energiya tejamkor texnologiyalar',
-    floors: Array.from({ length: 8 }, (_, i) => ({
-      id: `floor-c-${i + 1}`,
-      floorNumber: i + 1,
-      totalApartments: 6,
-      soldApartments: Math.floor(Math.random() * 4) + 1,
-      reservedApartments: Math.floor(Math.random() * 2) + 1,
-      availableApartments: Math.floor(Math.random() * 3)
-    }))
-  },
-  {
-    id: 'block-d',
-    name: 'D Blok',
-    totalFloors: 6,
-    totalApartments: 36,
-    soldApartments: 15,
-    reservedApartments: 12,
-    availableApartments: 9,
-    totalRevenue: 1450000,
-    constructionStatus: 'planning',
-    completionPercentage: 25,
-    startDate: '2023-06-01',
-    expectedCompletionDate: '2025-03-15',
-    description: "Premium segment, panoramik ko'rinish va VIP xizmatlar",
-    floors: Array.from({ length: 6 }, (_, i) => ({
-      id: `floor-d-${i + 1}`,
-      floorNumber: i + 1,
-      totalApartments: 6,
-      soldApartments: Math.floor(Math.random() * 3),
-      reservedApartments: Math.floor(Math.random() * 3) + 1,
-      availableApartments: Math.floor(Math.random() * 4) + 1
-    }))
-  }
-];
 
 export default function BlocksPage() {
-  const [blocks, setBlocks] = useState<BlockDto[]>(generateMockBlocks());
-  const [filteredBlocks, setFilteredBlocks] = useState<BlockDto[]>(
-    generateMockBlocks()
-  );
-  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
-  const [isViewModalVisible, setIsViewModalVisible] = useState(false);
-  const [selectedBlock, setSelectedBlock] = useState<BlockDto | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [form] = Form.useForm();
+  const user = getSessionUser();
+  const perms = user?.effectivePermissions;
+  const canRead = can(perms, user?.role, 'blocks.read');
+  const canWrite = can(perms, user?.role, 'blocks.write');
+  const canDelete = can(perms, user?.role, 'blocks.delete');
+  const canFloorRead = can(perms, user?.role, 'floors.read');
+  const canFloorWrite = can(perms, user?.role, 'floors.write');
+  const canFloorDelete = can(perms, user?.role, 'floors.delete');
+  const canAptRead = can(perms, user?.role, 'apartments.read');
+  const canAptWrite = can(perms, user?.role, 'apartments.write');
+  const canAptDelete = can(perms, user?.role, 'apartments.delete');
 
-  // Filter blocks
+  const orgId = user?.organizationId ?? undefined;
+  const isStaff = user?.role === 'staff';
+  const staffBranchId = user?.branchId ?? undefined;
+
+  const [addOpen, setAddOpen] = useState(false);
+  const [editRow, setEditRow] = useState<BlockRow | null>(null);
+  const [dupSource, setDupSource] = useState<BlockRow | null>(null);
+  const [form] = Form.useForm<{ branchId: string; code: string; name: string }>();
+  const [editForm] = Form.useForm<{ code: string; name: string }>();
+  const [dupForm] = Form.useForm<{ name: string; code?: string }>();
+  const [branchFilter, setBranchFilter] = useState<string | undefined>();
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [expandedBlockKeys, setExpandedBlockKeys] = useState<string[]>([]);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignBranchId, setAssignBranchId] = useState<string>('');
+
   useEffect(() => {
-    let filtered = blocks;
+    void refreshAuthMe();
+  }, []);
 
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (block) =>
-          block.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          block.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+  const { data: orgBranches = [], isLoading: orgBranchesLoading } =
+    useBranchesOrgQuery(orgId, Boolean(orgId) && !isStaff);
+
+  const { data: staffBranch, isLoading: staffBranchLoading } = useBranchQuery(
+    staffBranchId,
+    isStaff && Boolean(staffBranchId),
+  );
+
+  const branches = useMemo((): BranchMgmtRow[] => {
+    if (isStaff && staffBranch) {
+      return [staffBranch];
     }
+    return orgBranches;
+  }, [isStaff, staffBranch, orgBranches]);
 
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(
-        (block) => block.constructionStatus === statusFilter
-      );
+  const branchesLoading = isStaff ? staffBranchLoading : orgBranchesLoading;
+
+  const { data: blocks = [], isLoading: blocksLoading } =
+    useBlocksQuery(canRead);
+
+  const { create, patch, remove, bulkRemove, duplicate, bulkAssignBranch } =
+    useBlockMutations();
+
+  useEffect(() => {
+    if (addOpen && branches.length === 1) {
+      form.setFieldsValue({ branchId: branches[0].id });
     }
+  }, [addOpen, branches, form]);
 
-    setFilteredBlocks(filtered);
-  }, [blocks, searchTerm, statusFilter]);
+  const loading = branchesLoading || blocksLoading;
 
-  // Statistics
-  const stats = {
-    totalBlocks: blocks.length,
-    totalApartments: blocks.reduce((acc, b) => acc + b.totalApartments, 0),
-    totalSold: blocks.reduce((acc, b) => acc + b.soldApartments, 0),
-    totalRevenue: blocks.reduce((acc, b) => acc + b.totalRevenue, 0),
-    completedBlocks: blocks.filter((b) => b.constructionStatus === 'completed')
-      .length,
-    avgCompletion: Math.round(
-      blocks.reduce((acc, b) => acc + b.completionPercentage, 0) / blocks.length
-    )
+  const branchNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    branches.forEach((b) => m.set(b.id, b.name));
+    return m;
+  }, [branches]);
+
+  const filteredBlocks = useMemo(() => {
+    if (!branchFilter) {
+      return blocks;
+    }
+    return blocks.filter((b) => b.branchId === branchFilter);
+  }, [blocks, branchFilter]);
+
+  const runBulkDeleteBlocks = async (choice: BulkDeleteChoice) => {
+    try {
+      if (choice === 'selected') {
+        await bulkRemove.mutateAsync({ ids: selectedRowKeys });
+      } else {
+        await bulkRemove.mutateAsync({
+          deleteAllInScope: true,
+          ...(branchFilter ? { branchId: branchFilter } : {}),
+        });
+      }
+      message.success('O‘chirildi');
+      setSelectedRowKeys([]);
+    } catch {
+      message.error('O‘chirishda xatolik');
+    }
   };
 
-  // Status colors
-  const getStatusColor = (status: string) => {
-    const colors = {
-      planning: '#f59e0b',
-      construction: '#3b82f6',
-      completed: '#10b981'
-    };
-    return colors[status as keyof typeof colors] || '#6b7280';
+  const runAssignBranch = async () => {
+    if (!assignBranchId || selectedRowKeys.length === 0) {
+      return;
+    }
+    const selectedRows = blocks.filter((b) => selectedRowKeys.includes(b.id));
+    if (!selectedRows.length) {
+      return;
+    }
+    const alreadyInTarget = selectedRows.filter(
+      (b) => b.branchId === assignBranchId,
+    ).length;
+    if (alreadyInTarget === selectedRowKeys.length) {
+      message.info('Tanlangan bloklar allaqachon shu filialga biriktirilgan');
+      return;
+    }
+    try {
+      const res = await bulkAssignBranch.mutateAsync({
+        targetBranchId: assignBranchId,
+        ids: selectedRowKeys,
+      });
+      message.success(`Biriktirildi: ${res.updated}, tashlab ketildi: ${res.skipped}`);
+      setAssignOpen(false);
+      setAssignBranchId('');
+      setSelectedRowKeys([]);
+    } catch {
+      message.error('Birikitrishda xatolik (kod konflikti yoki ruxsat)')
+    }
   };
 
-  const getStatusText = (status: string) => {
-    const texts = {
-      planning: 'Rejalashtirilmoqda',
-      construction: 'Qurilmoqda',
-      completed: 'Tugallangan'
-    };
-    return texts[status as keyof typeof texts] || status;
+  const submitCreate = async () => {
+    const v = await form.validateFields();
+    try {
+      await create.mutateAsync(v);
+      message.success('Blok qo‘shildi');
+      setAddOpen(false);
+      form.resetFields();
+    } catch {
+      message.error('Saqlashda xatolik');
+    }
   };
 
-  // // Chart data
-  // const pieChartData = blocks.map((block) => ({
-  //   name: block.name,
-  //   sold: block.soldApartments,
-  //   reserved: block.reservedApartments,
-  //   available: block.availableApartments
-  // }));
+  const submitEdit = async () => {
+    if (!editRow) {
+      return;
+    }
+    const v = await editForm.validateFields();
+    try {
+      await patch.mutateAsync({ id: editRow.id, body: v });
+      message.success('Yangilandi');
+      setEditRow(null);
+    } catch {
+      message.error('Yangilashda xatolik');
+    }
+  };
 
-  const barChartData = blocks.map((block) => ({
-    name: block.name,
-    sold: block.soldApartments,
-    reserved: block.reservedApartments,
-    available: block.availableApartments,
-    total: block.totalApartments
-  }));
+  const submitDuplicate = async () => {
+    if (!dupSource) {
+      return;
+    }
+    const v = await dupForm.validateFields();
+    try {
+      await duplicate.mutateAsync({
+        id: dupSource.id,
+        body: {
+          name: v.name.trim(),
+          ...(v.code?.trim() ? { code: v.code.trim() } : {}),
+        },
+      });
+      message.success('Blok nusxalandi');
+      setDupSource(null);
+      dupForm.resetFields();
+    } catch {
+      message.error('Nusxalashda xatolik');
+    }
+  };
 
-  // Table columns
-  const columns = [
+  const columns: ColumnsType<BlockRow> = [
     {
       title: 'Blok',
-      key: 'block',
-      render: (record: BlockDto) => (
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-[#6bd2bc] to-[#4ade80] rounded-lg flex items-center justify-center">
-            <Building2
-              size={24}
-              className="text-slate-600 dark:text-slate-400"
-            />
-          </div>
+      key: 'n',
+      render: (_, r) => (
+        <div className="flex items-center gap-2">
+          <Building2 className="h-5 w-5 text-teal-500" />
           <div>
-            <div className="font-medium text-slate-900 dark:text-white text-lg">
-              {record.name}
+            <div className="font-medium text-slate-900 dark:text-white">
+              {r.name}
             </div>
-            <div className="text-sm text-slate-500">
-              {record.totalFloors} qavat • {record.totalApartments} kvartira
-            </div>
-          </div>
-        </div>
-      )
-    },
-    {
-      title: 'Holat',
-      dataIndex: 'constructionStatus',
-      key: 'constructionStatus',
-      render: (status: string, record: BlockDto) => (
-        <div>
-          <Tag
-            color={getStatusColor(status)}
-            style={{ color: 'white', border: 'none', marginBottom: '4px' }}
-          >
-            {getStatusText(status)}
-          </Tag>
-          <div>
-            <Progress
-              percent={record.completionPercentage}
-              size="small"
-              strokeColor={getStatusColor(status)}
-              showInfo={false}
-            />
-            <Text className="text-xs text-slate-500">
-              {record.completionPercentage}% tugallangan
+            <Text type="secondary" className="text-xs">
+              Kod: {r.code}
             </Text>
           </div>
         </div>
       ),
-      filters: [
-        { text: 'Rejalashtirilmoqda', value: 'planning' },
-        { text: 'Qurilmoqda', value: 'construction' },
-        { text: 'Tugallangan', value: 'completed' }
-      ],
-      onFilter: (value: any, record: BlockDto) =>
-        record.constructionStatus === value
     },
     {
-      title: 'Sotuvlar',
-      key: 'sales',
-      render: (record: BlockDto) => {
-        const soldPercentage = Math.round(
-          (record.soldApartments / record.totalApartments) * 100
-        );
-        return (
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-green-600">
-                Sotilgan: {record.soldApartments}
-              </span>
-              <span className="text-blue-600">
-                Bron: {record.reservedApartments}
-              </span>
-              <span className="text-slate-500">
-                Mavjud: {record.availableApartments}
-              </span>
-            </div>
-            <Progress
-              percent={soldPercentage}
-              strokeColor="#10b981"
-              trailColor="#e2e8f0"
-              size="small"
-            />
-          </div>
-        );
-      },
-      sorter: (a: BlockDto, b: BlockDto) => a.soldApartments - b.soldApartments
-    },
-    {
-      title: 'Daromad',
-      dataIndex: 'totalRevenue',
-      key: 'totalRevenue',
-      render: (revenue: number) => (
-        <div className="text-right">
-          <div className="font-semibold text-green-600 text-lg">
-            ${revenue.toLocaleString()}
-          </div>
-          <div className="text-xs text-slate-500">USD</div>
-        </div>
-      ),
-      sorter: (a: BlockDto, b: BlockDto) => a.totalRevenue - b.totalRevenue
-    },
-    {
-      title: 'Muddat',
-      key: 'timeline',
-      render: (record: BlockDto) => (
-        <div className="text-sm">
-          <div className="text-slate-900 dark:text-white">
-            Boshlangan: {new Date(record.startDate).toLocaleDateString('uz-UZ')}
-          </div>
-          <div className="text-slate-500">
-            Tugash:{' '}
-            {new Date(record.expectedCompletionDate).toLocaleDateString(
-              'uz-UZ'
-            )}
-          </div>
-        </div>
-      )
+      title: 'Filial',
+      key: 'br',
+      render: (_, r) =>
+        r.branch?.name ?? branchNameById.get(r.branchId) ?? r.branchId,
     },
     {
       title: 'Amallar',
-      key: 'actions',
-      render: (record: BlockDto) => (
+      key: 'a',
+      width: 200,
+      render: (_, r) => (
         <Space>
-          <Tooltip title="Ko'rish">
+          {canWrite ? (
+            <Tooltip title="Nusxalash">
+              <Button
+                type="text"
+                icon={<Copy className="h-4 w-4" />}
+                onClick={() => {
+                  setDupSource(r);
+                  dupForm.setFieldsValue({
+                    name: `${r.name} (nusxa)`,
+                    code: undefined,
+                  });
+                }}
+              />
+            </Tooltip>
+          ) : null}
+          {canWrite ? (
             <Button
               type="text"
-              icon={<Eye size={16} />}
+              icon={<Pencil className="h-4 w-4" />}
               onClick={() => {
-                setSelectedBlock(record);
-                setIsViewModalVisible(true);
+                setEditRow(r);
+                editForm.setFieldsValue({ code: r.code, name: r.name });
               }}
             />
-          </Tooltip>
-          <Tooltip title="Tahrirlash">
-            <Button type="text" icon={<Edit size={16} />} />
-          </Tooltip>
+          ) : null}
+          {canDelete ? (
+            <Popconfirm
+              title="Blokni o‘chirish?"
+              description="Bog‘liq qavatlar va shartnomalarsiz kvartiralar ham o‘chadi."
+              onConfirm={async () => {
+                try {
+                  await remove.mutateAsync(r.id);
+                  message.success('O‘chirildi');
+                } catch {
+                  message.error('O‘chirish mumkin emas (shartnoma yoki FK)');
+                }
+              }}
+            >
+              <Button type="text" danger icon={<Trash2 className="h-4 w-4" />} />
+            </Popconfirm>
+          ) : null}
         </Space>
-      )
-    }
+      ),
+    },
   ];
 
-  const handleAddBlock = (values: any) => {
-    const newBlock: BlockDto = {
-      id: `block-${Date.now()}`,
-      ...values,
-      totalApartments: values.totalFloors * 6, // Assuming 6 apartments per floor
-      soldApartments: 0,
-      reservedApartments: 0,
-      availableApartments: values.totalFloors * 6,
-      totalRevenue: 0,
-      completionPercentage: 0,
-      floors: []
-    };
-    setBlocks([...blocks, newBlock]);
-    setIsAddModalVisible(false);
-    form.resetFields();
-    message.success("Blok muvaffaqiyatli qo'shildi!");
-  };
+  if (!canRead) {
+    return (
+      <div className="p-6 text-slate-600 dark:text-slate-400">
+        Bloklar bo‘limiga ruxsat yo‘q.
+      </div>
+    );
+  }
 
   return (
-    <div className="p-2 space-y-6 min-h-full">
-      {/* Statistics */}
-      <div>
-        <Row gutter={[24, 24]}>
-          <Col xs={24} sm={6}>
-            <Card className="bg-gradient-to-br from-[#6fe0c8] to-[#419380da] border-0 text-white">
-              <Statistic
-                className="text-slate-600 dark:text-slate-400"
-                title={
-                  <span className="text-slate-600 dark:text-slate-400">
-                    Jami Bloklar
-                  </span>
-                }
-                value={stats.totalBlocks}
-                prefix={
-                  <Building2 className="text-slate-600 dark:text-slate-400" />
-                }
-                valueStyle={{
-                  fontSize: '2rem',
-                  fontWeight: 'bold'
-                }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={6}>
-            <Card className="bg-gradient-to-br from-blue-400 to-blue-600 border-0 text-white">
-              <Statistic
-                className="text-slate-600 dark:text-slate-400"
-                title={
-                  <span className="text-slate-600 dark:text-slate-400">
-                    Jami Kvartiralar
-                  </span>
-                }
-                value={stats.totalApartments}
-                prefix={<Home className="text-slate-600 dark:text-slate-400" />}
-                valueStyle={{
-                  fontSize: '2rem',
-                  fontWeight: 'bold'
-                }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={6}>
-            <Card className="bg-gradient-to-br from-green-400 to-green-600 border-0 text-white">
-              <Statistic
-                className="text-slate-600 dark:text-slate-400"
-                title={
-                  <span className="text-slate-600 dark:text-slate-400">
-                    Sotilgan
-                  </span>
-                }
-                value={stats.totalSold}
-                prefix={
-                  <Users className="text-slate-600 dark:text-slate-400" />
-                }
-                valueStyle={{
-                  fontSize: '2rem',
-                  fontWeight: 'bold'
-                }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={6}>
-            <Card className="bg-gradient-to-br from-purple-400 to-purple-600 border-0 text-white">
-              <Statistic
-                className="text-slate-600 dark:text-slate-400"
-                title={
-                  <span className="text-slate-600 dark:text-slate-400">
-                    Jami Daromad
-                  </span>
-                }
-                value={stats.totalRevenue}
-                prefix="$"
-                valueStyle={{
-                  fontSize: '2rem',
-                  fontWeight: 'bold'
-                }}
-                formatter={(value) => `${Number(value).toLocaleString()}`}
-              />
-            </Card>
-          </Col>
-        </Row>
-      </div>
-
-      <Row gutter={[24, 24]}>
-        {/* Charts */}
-        <Col xs={24} lg={12}>
-          <div>
-            <Card
-              className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
-              title={
-                <Title
-                  level={4}
-                  className="!text-slate-900 dark:!text-white !mb-0"
-                >
-                  Bloklarga Bo'yicha Sotuvlar
-                </Title>
-              }
-            >
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={barChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="name" stroke="#64748b" />
-                  <YAxis stroke="#64748b" />
-                  <RechartsTooltip />
-                  <Bar dataKey="sold" fill="#10b981" name="Sotilgan" />
-                  <Bar dataKey="reserved" fill="#3b82f6" name="Bron" />
-                  <Bar dataKey="available" fill="#6bd2bc" name="Mavjud" />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-          </div>
-        </Col>
-
-        {/* Filters */}
-        <Col xs={24} lg={12}>
-          <div>
-            <Card className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800 mb-6">
-              <Row gutter={[16, 16]} align="middle">
-                <Col xs={24} sm={12}>
-                  <AntSearch
-                    placeholder="Blok nomi yoki tavsif bo'yicha qidirish..."
-                    allowClear
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    prefix={<Search size={16} />}
-                  />
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Select
-                    placeholder="Holat"
-                    value={statusFilter}
-                    onChange={setStatusFilter}
-                    style={{ width: '100%' }}
-                    suffixIcon={<Filter size={16} />}
-                  >
-                    <Option value="all">Barcha holatlar</Option>
-                    <Option value="planning">Rejalashtirilmoqda</Option>
-                    <Option value="construction">Qurilmoqda</Option>
-                    <Option value="completed">Tugallangan</Option>
-                  </Select>
-                </Col>
-              </Row>
-            </Card>
-
-            {/* Quick Stats */}
-            <Card
-              className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
-              title={
-                <Title
-                  level={4}
-                  className="!text-slate-900 dark:!text-white !mb-0"
-                >
-                  Tezkor Ma'lumotlar
-                </Title>
-              }
-            >
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <Text>Tugallangan bloklar:</Text>
-                  <Badge
-                    count={stats.completedBlocks}
-                    style={{ backgroundColor: '#10b981' }}
-                  />
-                </div>
-                <div className="flex justify-between items-center">
-                  <Text>O'rtacha tugallanish:</Text>
-                  <Text className="font-semibold text-[#6bd2bc]">
-                    {stats.avgCompletion}%
-                  </Text>
-                </div>
-                <div className="flex justify-between items-center">
-                  <Text>Sotilish foizi:</Text>
-                  <Text className="font-semibold text-green-600">
-                    {Math.round(
-                      (stats.totalSold / stats.totalApartments) * 100
-                    )}
-                    %
-                  </Text>
-                </div>
-                <div className="flex justify-between items-center">
-                  <Text>O'rtacha narx:</Text>
-                  <Text className="font-semibold text-purple-600">
-                    $
-                    {Math.round(
-                      stats.totalRevenue / stats.totalSold
-                    ).toLocaleString()}
-                  </Text>
-                </div>
-              </div>
-            </Card>
-          </div>
-        </Col>
-      </Row>
-
-      {/* Blocks Table */}
-      <div>
-        <Card
-          className="bg-white/90 dark:bg-[#101010] border-slate-200 dark:border-slate-800"
-          title={
-            <div className="flex items-center justify-between">
-              <div className="flex gap-2 items-end">
-                <Title
-                  level={4}
-                  className="!text-slate-900 dark:!text-white !mb-0"
-                >
-                  Bloklar Ro'yxati
-                </Title>
-                <Text className="text-slate-600 dark:text-slate-400">
-                  Jami: {filteredBlocks.length} ta blok
-                </Text>{' '}
-              </div>
+    <div className="space-y-4 p-2">
+      <Card className="border-slate-200 dark:border-zinc-800 dark:bg-zinc-950/60">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <Title level={4} className="!mb-0 !text-slate-900 dark:!text-white">
+            Bloklar
+          </Title>
+          <Space wrap>
+            <Select
+              allowClear
+              placeholder="Filial bo‘yicha"
+              style={{ minWidth: 200 }}
+              value={branchFilter}
+              onChange={(v) => {
+                setBranchFilter(v);
+                setSelectedRowKeys([]);
+              }}
+              options={branches.map((b: BranchMgmtRow) => ({
+                value: b.id,
+                label: `${b.name}${b.code ? ` (${b.code})` : ''}`,
+              }))}
+            />
+            {canWrite ? (
+              <Button
+                disabled={selectedRowKeys.length === 0}
+                onClick={() => setAssignOpen(true)}
+              >
+                Filialga biriktirish
+              </Button>
+            ) : null}
+            {canDelete ? (
+              <Button danger onClick={() => setBulkDeleteOpen(true)}>
+                O‘chirish
+              </Button>
+            ) : null}
+            {canWrite ? (
               <Button
                 type="primary"
-                size="large"
-                icon={<Plus size={18} />}
-                onClick={() => setIsAddModalVisible(true)}
-                style={{
-                  background: '#6bd2bc',
-                  border: 'none'
-                }}
+                icon={<Plus className="h-4 w-4" />}
+                onClick={() => setAddOpen(true)}
+                className="!bg-teal-500 !border-teal-500 hover:!bg-teal-400"
               >
-                Yangi Blok
+                Yangi blok
               </Button>
-            </div>
+            ) : null}
+          </Space>
+        </div>
+        <Table<BlockRow>
+          rowKey="id"
+          loading={loading}
+          columns={columns}
+          dataSource={filteredBlocks}
+          rowSelection={
+            canDelete
+              ? {
+                  selectedRowKeys,
+                  onChange: (keys) => setSelectedRowKeys(keys as string[]),
+                }
+              : undefined
           }
-        >
-          <Table
-            columns={columns}
-            dataSource={filteredBlocks}
-            rowKey="id"
-            pagination={{
-              pageSize: 10,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total, range) =>
-                `${range[0]}-${range[1]} / ${total} ta`
-            }}
-            scroll={{ x: 1000 }}
-            size="middle"
-          />
-        </Card>
-      </div>
+          pagination={{ pageSize: 12 }}
+          expandable={{
+            expandedRowKeys: expandedBlockKeys,
+            onExpandedRowsChange: (keys) =>
+              setExpandedBlockKeys(keys as string[]),
+            expandedRowRender: (record) => (
+              <BlockHierarchyPanel
+                blockId={record.id}
+                visible={expandedBlockKeys.includes(record.id)}
+                canFloorRead={canFloorRead}
+                canFloorWrite={canFloorWrite}
+                canFloorDelete={canFloorDelete}
+                canAptRead={canAptRead}
+                canAptWrite={canAptWrite}
+                canAptDelete={canAptDelete}
+              />
+            ),
+          }}
+        />
+      </Card>
 
-      {/* Add Block Modal */}
       <Modal
-        title="Yangi Blok Qo'shish"
-        open={isAddModalVisible}
-        onCancel={() => {
-          setIsAddModalVisible(false);
-          form.resetFields();
-        }}
-        onOk={() => form.submit()}
+        title="Yangi blok"
+        open={addOpen}
+        onCancel={() => setAddOpen(false)}
+        onOk={() => void submitCreate()}
         okText="Saqlash"
-        cancelText="Bekor qilish"
-        okButtonProps={{
-          style: { backgroundColor: '#6bd2bc', border: 'none' }
-        }}
-        width={600}
+        confirmLoading={create.isPending}
       >
-        <Form form={form} layout="vertical" onFinish={handleAddBlock}>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="name"
-                label="Blok nomi"
-                rules={[{ required: true, message: 'Blok nomini kiriting' }]}
-              >
-                <Input placeholder="A Blok" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="totalFloors"
-                label="Qavatlar soni"
-                rules={[
-                  { required: true, message: 'Qavatlar sonini kiriting' }
-                ]}
-              >
-                <Input type="number" placeholder="7" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="constructionStatus"
-                label="Qurilish holati"
-                rules={[{ required: true, message: 'Holatni tanlang' }]}
-              >
-                <Select placeholder="Holatni tanlang">
-                  <Option value="planning">Rejalashtirilmoqda</Option>
-                  <Option value="construction">Qurilmoqda</Option>
-                  <Option value="completed">Tugallangan</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="completionPercentage"
-                label="Tugallanish foizi"
-                rules={[{ required: true, message: 'Foizni kiriting' }]}
-              >
-                <Input type="number" placeholder="75" suffix="%" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="startDate"
-                label="Boshlash sanasi"
-                rules={[{ required: true, message: 'Sanani kiriting' }]}
-              >
-                <Input type="date" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="expectedCompletionDate"
-                label="Tugash sanasi"
-                rules={[{ required: true, message: 'Sanani kiriting' }]}
-              >
-                <Input type="date" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item name="description" label="Tavsif">
-            <Input.TextArea
-              rows={3}
-              placeholder="Blok haqida qisqacha ma'lumot..."
+        <Form form={form} layout="vertical" className="mt-4">
+          <Form.Item
+            name="branchId"
+            label="Filial"
+            rules={[{ required: true, message: 'Tanlang' }]}
+          >
+            <Select
+              placeholder="Filial"
+              options={branches.map((b: BranchMgmtRow) => ({
+                value: b.id,
+                label: `${b.name}${b.code ? ` (${b.code})` : ''}`,
+              }))}
             />
+          </Form.Item>
+          <Form.Item
+            name="code"
+            label="Kod"
+            rules={[{ required: true, message: 'Kod kiriting' }]}
+          >
+            <Input placeholder="A" />
+          </Form.Item>
+          <Form.Item
+            name="name"
+            label="Nomi"
+            rules={[{ required: true, message: 'Nom kiriting' }]}
+          >
+            <Input placeholder="A bloki" />
           </Form.Item>
         </Form>
       </Modal>
 
-      {/* View Block Modal */}
       <Modal
-        title="Blok Tafsilotlari"
-        open={isViewModalVisible}
-        onCancel={() => setIsViewModalVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setIsViewModalVisible(false)}>
-            Yopish
-          </Button>
-        ]}
-        width={800}
+        title="Blokni tahrirlash"
+        open={!!editRow}
+        onCancel={() => setEditRow(null)}
+        onOk={() => void submitEdit()}
+        okText="Saqlash"
+        confirmLoading={patch.isPending}
       >
-        {selectedBlock && (
-          <div className="space-y-6">
-            {/* Block Header */}
-            <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-[#6bd2bc]/10 to-blue-500/10 rounded-lg">
-              <div className="w-16 h-16 bg-gradient-to-br from-[#6bd2bc] to-[#4ade80] rounded-lg flex items-center justify-center">
-                <Building2
-                  size={32}
-                  className="text-slate-600 dark:text-slate-400"
-                />
-              </div>
-              <div className="flex-1">
-                <Title level={3} className="!mb-1">
-                  {selectedBlock.name}
-                </Title>
-                <Text className="text-slate-600">
-                  {selectedBlock.description}
-                </Text>
-                <div className="mt-2">
-                  <Tag
-                    color={getStatusColor(selectedBlock.constructionStatus)}
-                    style={{ color: 'white', border: 'none' }}
-                  >
-                    {getStatusText(selectedBlock.constructionStatus)}
-                  </Tag>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-green-600">
-                  ${selectedBlock.totalRevenue.toLocaleString()}
-                </div>
-                <Text className="text-slate-600">Jami daromad</Text>
-              </div>
-            </div>
+        <Form form={editForm} layout="vertical" className="mt-4">
+          <Form.Item
+            name="code"
+            label="Kod"
+            rules={[{ required: true, message: 'Kod kiriting' }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="name"
+            label="Nomi"
+            rules={[{ required: true, message: 'Nom kiriting' }]}
+          >
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
 
-            {/* Statistics */}
-            <Row gutter={16}>
-              <Col span={6}>
-                <Card size="small" className="text-center">
-                  <Statistic
-                    title="Qavatlar"
-                    value={selectedBlock.totalFloors}
-                    valueStyle={{ color: '#6bd2bc' }}
-                  />
-                </Card>
-              </Col>
-              <Col span={6}>
-                <Card size="small" className="text-center">
-                  <Statistic
-                    title="Kvartiralar"
-                    value={selectedBlock.totalApartments}
-                    valueStyle={{ color: '#3b82f6' }}
-                  />
-                </Card>
-              </Col>
-              <Col span={6}>
-                <Card size="small" className="text-center">
-                  <Statistic
-                    title="Sotilgan"
-                    value={selectedBlock.soldApartments}
-                    valueStyle={{ color: '#10b981' }}
-                  />
-                </Card>
-              </Col>
-              <Col span={6}>
-                <Card size="small" className="text-center">
-                  <Statistic
-                    title="Tugallanish"
-                    value={selectedBlock.completionPercentage}
-                    suffix="%"
-                    valueStyle={{ color: '#f59e0b' }}
-                  />
-                </Card>
-              </Col>
-            </Row>
+      <Modal
+        title="Blokni nusxalash"
+        open={!!dupSource}
+        onCancel={() => {
+          setDupSource(null);
+          dupForm.resetFields();
+        }}
+        onOk={() => void submitDuplicate()}
+        okText="Nusxalash"
+        confirmLoading={duplicate.isPending}
+      >
+        <Text type="secondary" className="mb-2 block text-sm">
+          Qavatlar va kvartiralar ko‘chadi. Kod bo‘sh bo‘lsa, avtomatik
+          (masalan {dupSource ? `${dupSource.code}-copy` : '…'}) beriladi.
+        </Text>
+        <Form form={dupForm} layout="vertical" className="mt-2">
+          <Form.Item
+            name="name"
+            label="Yangi blok nomi"
+            rules={[{ required: true, message: 'Nom kiriting' }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item name="code" label="Kod (ixtiyoriy)">
+            <Input placeholder="Bo‘sh qoldiring — avtomatik" />
+          </Form.Item>
+        </Form>
+      </Modal>
 
-            {/* Progress */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <Text strong>Qurilish jarayoni:</Text>
-                <Text>{selectedBlock.completionPercentage}%</Text>
-              </div>
-              <Progress
-                percent={selectedBlock.completionPercentage}
-                strokeColor={getStatusColor(selectedBlock.constructionStatus)}
-              />
-            </div>
+      <BulkDeleteConfirmModal
+        open={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        entityLabel="Bloklar"
+        selectedCount={selectedRowKeys.length}
+        scopeDescription={
+          branchFilter
+            ? 'Tanlangan filialdagi barcha bloklar (API bilan bir xil branchId doirasi).'
+            : 'Ruxsatingiz bo‘lgan barcha filiallardagi bloklar (joriy jadval filtri emas).'
+        }
+        onConfirm={runBulkDeleteBlocks}
+      />
 
-            {/* Sales Progress */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <Text strong>Sotuvlar jarayoni:</Text>
-                <Text>
-                  {Math.round(
-                    (selectedBlock.soldApartments /
-                      selectedBlock.totalApartments) *
-                      100
-                  )}
-                  %
-                </Text>
-              </div>
-              <Progress
-                percent={Math.round(
-                  (selectedBlock.soldApartments /
-                    selectedBlock.totalApartments) *
-                    100
-                )}
-                strokeColor="#10b981"
-              />
-              <div className="flex justify-between text-sm mt-2">
-                <span className="text-green-600">
-                  Sotilgan: {selectedBlock.soldApartments}
-                </span>
-                <span className="text-blue-600">
-                  Bron: {selectedBlock.reservedApartments}
-                </span>
-                <span className="text-slate-500">
-                  Mavjud: {selectedBlock.availableApartments}
-                </span>
-              </div>
-            </div>
-
-            {/* Timeline */}
-            <Row gutter={16}>
-              <Col span={12}>
-                <div>
-                  <Text strong className="text-slate-600">
-                    Boshlash sanasi:
-                  </Text>
-                  <div className="mt-1">
-                    {new Date(selectedBlock.startDate).toLocaleDateString(
-                      'uz-UZ'
-                    )}
-                  </div>
-                </div>
-              </Col>
-              <Col span={12}>
-                <div>
-                  <Text strong className="text-slate-600">
-                    Tugash sanasi:
-                  </Text>
-                  <div className="mt-1">
-                    {new Date(
-                      selectedBlock.expectedCompletionDate
-                    ).toLocaleDateString('uz-UZ')}
-                  </div>
-                </div>
-              </Col>
-            </Row>
+      <Modal
+        title="Bloklarni filialga biriktirish"
+        open={assignOpen}
+        onCancel={() => {
+          setAssignOpen(false);
+          setAssignBranchId('');
+        }}
+        onOk={() => void runAssignBranch()}
+        okText="Birikitrish"
+        confirmLoading={bulkAssignBranch.isPending}
+        okButtonProps={{ disabled: !assignBranchId || selectedRowKeys.length === 0 }}
+      >
+        <div className="text-sm text-slate-600 dark:text-slate-400">
+          Tanlangan: {selectedRowKeys.length} ta blok
+        </div>
+        <div className="mt-4">
+          <div className="mb-2 text-sm font-medium text-slate-900 dark:text-white">
+            Filial
           </div>
-        )}
+          <Select
+            placeholder="Filialni tanlang"
+            value={assignBranchId || undefined}
+            onChange={(v) => setAssignBranchId(v)}
+            style={{ width: '100%' }}
+            options={branches.map((b: BranchMgmtRow) => ({
+              value: b.id,
+              label: `${b.name}${b.code ? ` (${b.code})` : ''}`,
+            }))}
+          />
+        </div>
       </Modal>
     </div>
   );

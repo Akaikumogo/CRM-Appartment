@@ -1,19 +1,59 @@
 import { motion } from 'motion/react';
-import { Form, Input, Button, ConfigProvider, theme } from 'antd';
+import { Form, Input, Button, ConfigProvider, theme, message } from 'antd';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/Providers/Configuration';
+import { api } from '@/lib/api';
+import { setOrgBlockedMeta, setSessionAuth } from '@/lib/sessionUser';
 
 const LoginPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const onFinish = (values: any) => {
-    console.log('Login values:', values);
-    localStorage.setItem('isLoggedIn', 'true');
-    navigate('/dashboard');
-    window.location.reload();
+  const onFinish = async (values: any) => {
+    try {
+      const { data } = await api.post<{
+        access_token: string;
+        user: {
+          id: string;
+          email: string;
+          role: 'superadmin' | 'org_admin' | 'staff';
+          organizationId: string | null;
+          branchId: string | null;
+          fullName: string | null;
+          effectivePermissions?: string[];
+        };
+        organizationBlocked?: boolean;
+        branchBlocked?: boolean;
+        supportPhone?: string;
+      }>('/auth/login', {
+        email: values.email,
+        password: values.password,
+      });
+      setSessionAuth(data.access_token, {
+        ...data.user,
+        effectivePermissions: data.user.effectivePermissions ?? [],
+      });
+      setOrgBlockedMeta(
+        !!(data.organizationBlocked || data.branchBlocked),
+        data.supportPhone,
+      );
+      navigate(
+        data.user.role === 'superadmin'
+          ? '/admin/organizations'
+          : '/dashboard/home',
+      );
+    } catch {
+      message.error({
+        key: 'login-fail',
+        content: t({
+          en: 'Invalid email or password',
+          uz: 'Email yoki parol noto‘g‘ri',
+          ru: 'Неверный email или пароль',
+        }),
+      });
+    }
   };
 
   const { theme: darkOrLight } = useApp();
@@ -24,9 +64,9 @@ const LoginPage = () => {
         algorithm:
           darkOrLight === 'dark' ? theme.darkAlgorithm : theme.defaultAlgorithm,
         token: {
-          colorPrimary: '#6bd2bc',
-          colorLink: '#6bd2bc',
-          colorBorder: '#6bd2bc'
+          colorPrimary: '#2dd4bf',
+          colorLink: '#2dd4bf',
+          colorBorder: '#2dd4bf',
         }
       }}
     >
@@ -63,6 +103,13 @@ const LoginPage = () => {
               ru: 'Добро пожаловать'
             })}
           </motion.h1>
+          <p className="mb-6 text-center text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+            {t({
+              en: 'Superadmin, organization admin, and branch admin all sign in here. Branch admin accounts are created when adding a branch (optional fields) or under Workers.',
+              uz: 'Superadmin, tashkilot admini va filial admini shu yerda kiradi. Filial admini akkaunti filial yaratishda (Filial admini maydonlari) yoki «Ishchilar» bo‘limida qo‘shiladi.',
+              ru: 'Суперадмин, админ организации и админ филиала входят здесь. Аккаунт админа филиала создаётся при создании филиала или в разделе «Сотрудники».',
+            })}
+          </p>
 
           <Form layout="vertical" onFinish={onFinish}>
             <Form.Item

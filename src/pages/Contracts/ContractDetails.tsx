@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import {
   ArrowLeft,
@@ -28,6 +28,7 @@ import {
 import { useParams, useNavigate } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import dayjs from 'dayjs';
+import { useContractQuery } from '@/hooks/api/crmHooks';
 
 const { Title, Text } = Typography;
 
@@ -74,85 +75,65 @@ export type ContractGoodDto = {
   totalPrice: number;
 };
 
-// Mock data generator
-const generateMockContractDetail = (contractId: string): ContractDetailDto => ({
-  contractId,
-  orderNumber: 12345,
-  clientName: 'Alisher Karimov',
-  clientPhone: '+998901234567',
-  apartmentNumber: 'A-1-12',
-  blockName: 'A Blok',
-  floorNumber: 1,
-  sellerName: 'Sardor Umarov',
-  contractAmount: 95000,
-  status: 'active',
-  paymentStatus: 'partial',
-  progress: 65,
-  contractDate: '2024-01-15',
-  createdAt: '2024-01-15T10:30:00Z',
-  updatedAt: '2024-01-20T14:45:00Z',
-  completedTime: '2024-02-15T18:00:00Z',
-  discountPercentage: 5,
-  extraFeePercentage: 0,
-  prepayment: 30000,
-  debt: 35000,
-  totalPriceAfterDiscount: 90250,
-  goods: [
-    {
-      id: '1',
-      name: 'Tozalash xizmati',
-      comment: 'Umumiy tozalash',
-      quantity: 1,
-      measurement: 'xona',
-      price: 50000,
-      totalPrice: 50000
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapToDetailDto(c: any): ContractDetailDto {
+  const apt = c.apartment;
+  const block = apt?.floor?.block;
+  return {
+    contractId: c.id,
+    orderNumber: 1,
+    clientName: c.client?.fullName ?? '',
+    clientPhone: c.client?.phone ?? '',
+    apartmentNumber: apt?.number ?? '',
+    blockName: block?.name ?? block?.code ?? '',
+    floorNumber: apt?.floor?.level ?? 0,
+    sellerName: c.seller?.fullName || c.seller?.email || '—',
+    contractAmount: Number(c.amount),
+    status: c.status,
+    paymentStatus: c.paymentStatus,
+    progress: c.progressPercent ?? 0,
+    contractDate: c.contractDate,
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
+    completedTime: undefined,
+    discountPercentage: 0,
+    extraFeePercentage: 0,
+    prepayment: 0,
+    debt: 0,
+    totalPriceAfterDiscount: Number(c.amount),
+    goods: [],
+    companyInfo: {
+      name: 'CRM',
+      address: '',
+      phones: [],
+      telegram: '',
+      instagram: '',
     },
-    {
-      id: '2',
-      name: 'Oyna tozalash',
-      comment: 'Barcha oynalar',
-      quantity: 8,
-      measurement: 'dona',
-      price: 5000,
-      totalPrice: 40000
-    },
-    {
-      id: '3',
-      name: 'Pol yuvish',
-      comment: 'Laminat va plitka',
-      quantity: 1,
-      measurement: 'xona',
-      price: 5000,
-      totalPrice: 5000
-    }
-  ],
-  companyInfo: {
-    name: 'TANZIF CLEANING',
-    address: 'Toshkent shahar, Yunusobod tumani',
-    phones: ['+998 93 570 51 50', '+998 93 570 59 92'],
-    telegram: '@tanzif_admin',
-    instagram: 'tanzif_cleaning'
-  }
-});
+  };
+}
 
 export default function ContractDetailPage() {
   const params = useParams();
   const navigate = useNavigate();
   const contractId = params?.contractId as string;
-  const [contractData, setContractData] = useState<ContractDetailDto | null>(
-    null
-  );
-  const [loading, setLoading] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  const {
+    data: contractRaw,
+    isLoading: loading,
+    isError,
+  } = useContractQuery(contractId, Boolean(contractId));
+
+  const contractData = useMemo(
+    () => (contractRaw ? mapToDetailDto(contractRaw) : null),
+    [contractRaw],
+  );
+
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      const mockData = generateMockContractDetail(contractId);
-      setContractData(mockData);
-      setLoading(false);
-    }, 1000);
-  }, [contractId]);
+    if (isError) {
+      message.error('Shartnoma yuklanmadi');
+    }
+  }, [isError]);
 
   const handlePrint = useReactToPrint({
     contentRef

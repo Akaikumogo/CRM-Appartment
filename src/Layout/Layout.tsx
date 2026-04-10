@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -11,14 +11,25 @@ import {
   UserPlus,
   ClipboardList,
   RectangleGoggles,
-  TrendingUp
+  TrendingUp,
+  FileText,
+  GitBranch,
+  Shield,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { OrganizationBlockedScreen } from '@/components/OrganizationBlockedScreen';
 import { useTranslation } from '@/hooks/useTranslation';
 import { ConfigProvider, Input, Select } from 'antd';
 import { Sidebar } from './SideBar';
+import { canAccessRoute, refreshAuthMe } from '@/lib/permissions';
+import {
+  clearSessionAuth,
+  getSessionUser,
+  isOrgBlockedInSession,
+  type SessionUser,
+} from '@/lib/sessionUser';
 
-const navItems = [
+const baseNavItems = [
   {
     path: '/dashboard/home',
     label: { uz: 'Bosh sahifa', en: 'Overview', ru: 'Главная' },
@@ -76,14 +87,93 @@ const navItems = [
 
 const Layout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [orgBlocked, setOrgBlocked] = useState(() => isOrgBlockedInSession());
+  const [me, setMe] = useState<SessionUser | null>(() => getSessionUser());
   const { t, lang, setLang } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    void refreshAuthMe().then(() => setMe(getSessionUser()));
+  }, []);
+
+  useEffect(() => {
+    if (me?.role === 'superadmin') {
+      navigate('/admin/organizations', { replace: true });
+    }
+  }, [me?.role, navigate]);
+
+  useEffect(() => {
+    if (!me) {
+      return;
+    }
+    if (!canAccessRoute(location.pathname, me)) {
+      navigate('/dashboard/home', { replace: true });
+    }
+  }, [location.pathname, me, navigate]);
+
+  useEffect(() => {
+    const sync = () => setOrgBlocked(isOrgBlockedInSession());
+    window.addEventListener('org-blocked-changed', sync);
+    return () => window.removeEventListener('org-blocked-changed', sync);
+  }, []);
+
+  const navItems = useMemo(() => {
+    const role = me?.role;
+    const items = [...baseNavItems];
+    if (role === 'org_admin') {
+      items.splice(1, 0, {
+        path: '/dashboard/branches',
+        label: {
+          uz: 'Filiallar',
+          en: 'Branches',
+          ru: 'Филиалы',
+        },
+        icon: GitBranch,
+      });
+      const wi = items.findIndex((i) => i.path === '/dashboard/workers');
+      items.splice(wi + 1, 0, {
+        path: '/dashboard/permissions',
+        label: {
+          uz: 'Ruxsatlar',
+          en: 'Permissions',
+          ru: 'Права доступа',
+        },
+        icon: Shield,
+      });
+    }
+    if (role === 'staff') {
+      items.push({
+        path: '/dashboard/my-permissions',
+        label: {
+          uz: 'Mening ruxsatlarim',
+          en: 'My permissions',
+          ru: 'Мои права',
+        },
+        icon: Shield,
+      });
+    }
+    if (role === 'org_admin' || role === 'staff') {
+      items.push({
+        path: '/dashboard/legal',
+        label: {
+          uz: 'Rasmiy ma’lumot',
+          en: 'Legal',
+          ru: 'Официальная информация',
+        },
+        icon: FileText,
+      });
+    }
+    return items.filter((item) => canAccessRoute(item.path, me));
+  }, [me]);
 
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
 
   const getCurrentPageTitle = () => {
     const currentItem = navItems.find(
-      (item) => item.path === location.pathname
+      (item) =>
+        item.path === location.pathname ||
+        location.pathname.startsWith(item.path + '/'),
     );
     return (
       currentItem?.label || { uz: 'Bosh sahifa', en: 'Home', ru: 'Главная' }
@@ -98,14 +188,17 @@ const Layout = () => {
       year: 'numeric'
     });
   };
-  const navigate = useNavigate();
+  if (orgBlocked) {
+    return <OrganizationBlockedScreen />;
+  }
 
   return (
     <ConfigProvider
       theme={{
         token: {
-          colorPrimary: '#6bd2bc'
-        }
+          colorPrimary: '#2dd4bf',
+          colorLink: '#2dd4bf',
+        },
       }}
     >
       <div className="min-h-screen">
@@ -114,11 +207,11 @@ const Layout = () => {
             {/* Sidebar */}
             <aside
               style={{ width: isCollapsed ? 100 : 340 }}
-              className="row-span-2 w-full bg-slate-50 dark:bg-[#101010] backdrop-blur-sm border-r border-[#6bd2bc] transition-all duration-300"
+              className="row-span-2 w-full bg-slate-50 dark:bg-zinc-950 backdrop-blur-sm border-r border-teal-500/40 transition-all duration-300"
             >
               <div className="flex flex-col h-full w-full">
                 {/* Logo */}
-                <div className="h-20 w-full flex items-center justify-center px-6 border-b border-[#6bd2bc]">
+                <div className="h-20 w-full flex items-center justify-center px-6 border-b border-teal-500/40">
                   <AnimatePresence mode="popLayout">
                     <div className="w-full flex items-center justify-start">
                       <motion.div
@@ -133,7 +226,7 @@ const Layout = () => {
                       >
                         <motion.div
                           layoutId="c"
-                          className="w-10 h-10 bg-[#6bd2bc] rounded-lg flex items-center justify-center"
+                          className="w-10 h-10 bg-teal-500 rounded-lg flex items-center justify-center"
                         >
                           <motion.span className="text-white dark:text-slate-900 font-bold text-lg">
                             C
@@ -147,8 +240,11 @@ const Layout = () => {
                             transition={{ duration: 0.6 }}
                             className="flex flex-col overflow-auto"
                           >
-                            <h1 className="min-w-[200px] font-bold text-lg text-slate-900 dark:text-white">
+                            <h1 className="min-w-[200px] font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
                               CRM Pro
+                              <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                                Beta
+                              </span>
                             </h1>
                             <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                               Executive
@@ -168,7 +264,7 @@ const Layout = () => {
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-[#000000]/50">
                     <button
                       onClick={() => {
-                        localStorage.removeItem('token');
+                        clearSessionAuth();
                         navigate('/login');
                       }}
                       style={{
@@ -197,7 +293,7 @@ const Layout = () => {
             <div className="w-full">
               {/* Header */}
               <header
-                className="bg-slate-50 dark:bg-[#101010] backdrop-blur-sm border-b border-[#6bd2bc]"
+                className="bg-slate-50 dark:bg-zinc-950 backdrop-blur-sm border-b border-teal-500/40"
                 style={{
                   transition: 'margin-left 0.3s ease-in-out'
                 }}
@@ -256,15 +352,17 @@ const Layout = () => {
                     <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-50 dark:bg-[#000000]">
                       <div className="text-right hidden sm:block">
                         <p className="text-sm font-medium text-slate-900 dark:text-white">
-                          Biznes Egasi
+                          {me?.fullName || me?.email || 'User'}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                          Executive
+                          {me?.role ?? '—'}
                         </p>
                       </div>
                       <div className="w-10 h-10 bg-slate-900 dark:bg-white rounded-full flex items-center justify-center">
                         <span className="text-white dark:text-slate-900 font-semibold text-sm">
-                          BE
+                          {(me?.email ?? 'U')
+                            .slice(0, 2)
+                            .toUpperCase()}
                         </span>
                       </div>
                     </div>
