@@ -37,7 +37,7 @@ export default function AdminBackups() {
       message.success(`Yaratildi: ${data.filename}`);
       await load();
     } catch {
-      message.error('pg_dump yo‘q yoki xatolik (serverda PostgreSQL client kerak)');
+      message.error('Backup yaratilmadi');
     } finally {
       setDumpLoading(false);
     }
@@ -131,7 +131,7 @@ export default function AdminBackups() {
         }
       >
         <Upload
-          accept=".sql"
+          accept=".sql,.json"
           showUploadList={false}
           customRequest={async (opt) => {
             const f = opt.file as File;
@@ -150,13 +150,13 @@ export default function AdminBackups() {
             }
           }}
         >
-          <Button icon={<UploadOutlined />}>.sql yuklash</Button>
+          <Button icon={<UploadOutlined />}>Backup yuklash</Button>
         </Upload>
       </Card>
 
       <Card title="Restore">
         <div className="mb-3 flex flex-wrap items-center gap-3">
-          <Input value={selected} onChange={(e) => setSelected(e.target.value)} placeholder="filename.sql" className="max-w-md" />
+          <Input value={selected} onChange={(e) => setSelected(e.target.value)} placeholder="filename.json" className="max-w-md" />
           <Checkbox checked={clearAndWrite} onChange={(e) => setClearAndWrite(e.target.checked)}>
             Clear and write
           </Checkbox>

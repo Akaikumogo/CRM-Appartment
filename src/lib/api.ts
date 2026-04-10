@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const baseURL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const baseURL =
+  import.meta.env.VITE_API_URL ?? 'https://crm-pro-backend.akaikumogo.uz';
 
 export const api = axios.create({ baseURL });
 
@@ -27,8 +28,7 @@ api.interceptors.response.use(
       (data?.code === 'ORG_BLOCKED' || data?.code === 'BRANCH_BLOCKED')
     ) {
       localStorage.setItem('organizationBlocked', '1');
-      const sp =
-        typeof data.supportPhone === 'string' ? data.supportPhone : '';
+      const sp = typeof data.supportPhone === 'string' ? data.supportPhone : '';
       if (sp) {
         localStorage.setItem('supportPhone', sp);
       }
@@ -44,5 +44,5 @@ api.interceptors.response.use(
       }
     }
     return Promise.reject(err);
-  },
+  }
 );
