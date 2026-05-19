@@ -15,11 +15,14 @@ import {
   FileText,
   GitBranch,
   Shield,
+  KeyRound,
+  RefreshCw,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { OrganizationBlockedScreen } from '@/components/OrganizationBlockedScreen';
 import { useTranslation } from '@/hooks/useTranslation';
-import { ConfigProvider, Input, Select } from 'antd';
+import { ConfigProvider, Dropdown, Form, Input, Modal, Select, message } from 'antd';
+import type { MenuProps } from 'antd';
 import { Sidebar } from './SideBar';
 import { canAccessRoute, refreshAuthMe } from '@/lib/permissions';
 import {
@@ -28,6 +31,7 @@ import {
   isOrgBlockedInSession,
   type SessionUser,
 } from '@/lib/sessionUser';
+import { changeMyPassword, requestPasswordReset } from '@/api/users';
 
 const baseNavItems = [
   {
@@ -92,6 +96,9 @@ const Layout = () => {
   const { t, lang, setLang } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const [changePassOpen, setChangePassOpen] = useState(false);
+  const [changePassForm] = Form.useForm();
+  const [requestResetLoading, setRequestResetLoading] = useState(false);
 
   useEffect(() => {
     void refreshAuthMe().then(() => setMe(getSessionUser()));
@@ -166,6 +173,60 @@ const Layout = () => {
     }
     return items.filter((item) => canAccessRoute(item.path, me));
   }, [me]);
+
+  const handleChangePassword = async (values: {
+    oldPassword: string;
+    newPassword: string;
+  }) => {
+    try {
+      await changeMyPassword(values.oldPassword, values.newPassword);
+      message.success('Parol muvaffaqiyatli yangilandi');
+      setChangePassOpen(false);
+      changePassForm.resetFields();
+    } catch {
+      message.error('Parolni o\'zgartirishda xatolik. Eski parolni tekshiring.');
+    }
+  };
+
+  const handleRequestReset = async () => {
+    setRequestResetLoading(true);
+    try {
+      const res = await requestPasswordReset();
+      message.success(res.message ?? 'So\'rov yuborildi');
+    } catch {
+      message.error('So\'rovni yuborishda xatolik');
+    } finally {
+      setRequestResetLoading(false);
+    }
+  };
+
+  const userMenuItems: MenuProps['items'] = [
+    {
+      key: 'change-password',
+      label: 'Parolimni o\'zgartirish',
+      icon: <KeyRound size={14} />,
+      onClick: () => { setChangePassOpen(true); changePassForm.resetFields(); },
+    },
+    ...(me?.role !== 'superadmin'
+      ? [
+          {
+            key: 'request-reset',
+            label: requestResetLoading ? 'Yuborilmoqda...' : 'Parolni tiklash so\'rovi',
+            icon: <RefreshCw size={14} />,
+            onClick: handleRequestReset,
+            disabled: requestResetLoading,
+          } as const,
+        ]
+      : []),
+    { type: 'divider' as const },
+    {
+      key: 'logout',
+      label: 'Chiqish',
+      icon: <LogOut size={14} />,
+      danger: true,
+      onClick: () => { clearSessionAuth(); navigate('/login'); },
+    },
+  ];
 
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
 
@@ -263,13 +324,8 @@ const Layout = () => {
                 <div className="p-4 min-h-[50px]">
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-[#000000]/50">
                     <button
-                      onClick={() => {
-                        clearSessionAuth();
-                        navigate('/login');
-                      }}
-                      style={{
-                        justifyContent: isCollapsed ? 'center' : 'flex-start'
-                      }}
+                      onClick={() => { clearSessionAuth(); navigate('/login'); }}
+                      style={{ justifyContent: isCollapsed ? 'center' : 'flex-start' }}
                       className="flex items-center gap-2 text-sm font-semibold transition-colors duration-200 w-full"
                     >
                       <LogOut size={20} className="dark:text-slate-300" />
@@ -287,6 +343,52 @@ const Layout = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Change Password Modal */}
+                <Modal
+                  title="Parolimni o'zgartirish"
+                  open={changePassOpen}
+                  onCancel={() => { setChangePassOpen(false); changePassForm.resetFields(); }}
+                  onOk={() => changePassForm.submit()}
+                  okText="Saqlash"
+                  cancelText="Bekor qilish"
+                  okButtonProps={{ style: { backgroundColor: '#6bd2bc', border: 'none' } }}
+                >
+                  <Form form={changePassForm} layout="vertical" onFinish={handleChangePassword}>
+                    <Form.Item
+                      name="oldPassword"
+                      label="Joriy parol"
+                      rules={[{ required: true, message: 'Joriy parolni kiriting' }]}
+                    >
+                      <Input.Password placeholder="Joriy parolni kiriting" />
+                    </Form.Item>
+                    <Form.Item
+                      name="newPassword"
+                      label="Yangi parol"
+                      rules={[{ required: true, min: 8, message: 'Kamida 8 belgi' }]}
+                    >
+                      <Input.Password placeholder="Yangi parol (kamida 8 belgi)" />
+                    </Form.Item>
+                    <Form.Item
+                      name="confirmPassword"
+                      label="Yangi parolni tasdiqlang"
+                      dependencies={['newPassword']}
+                      rules={[
+                        { required: true },
+                        ({ getFieldValue }) => ({
+                          validator(_, value) {
+                            if (!value || getFieldValue('newPassword') === value) {
+                              return Promise.resolve();
+                            }
+                            return Promise.reject(new Error('Parollar mos kelmadi'));
+                          },
+                        }),
+                      ]}
+                    >
+                      <Input.Password placeholder="Yangi parolni qayta kiriting" />
+                    </Form.Item>
+                  </Form>
+                </Modal>
               </div>
             </aside>
 
@@ -348,24 +450,26 @@ const Layout = () => {
                         }
                       ]}
                     />
-                    {/* User Avatar */}
-                    <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-50 dark:bg-[#000000]">
-                      <div className="text-right hidden sm:block">
-                        <p className="text-sm font-medium text-slate-900 dark:text-white">
-                          {me?.fullName || me?.email || 'User'}
-                        </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {me?.role ?? '—'}
-                        </p>
+                    {/* User Avatar with dropdown */}
+                    <Dropdown menu={{ items: userMenuItems }} trigger={['click']} placement="bottomRight">
+                      <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-50 dark:bg-[#000000] cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-900 transition-colors">
+                        <div className="text-right hidden sm:block">
+                          <p className="text-sm font-medium text-slate-900 dark:text-white">
+                            {me?.fullName || me?.email || 'User'}
+                          </p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {me?.role ?? '—'}
+                          </p>
+                        </div>
+                        <div className="w-10 h-10 bg-slate-900 dark:bg-white rounded-full flex items-center justify-center">
+                          <span className="text-white dark:text-slate-900 font-semibold text-sm">
+                            {(me?.email ?? 'U')
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </span>
+                        </div>
                       </div>
-                      <div className="w-10 h-10 bg-slate-900 dark:bg-white rounded-full flex items-center justify-center">
-                        <span className="text-white dark:text-slate-900 font-semibold text-sm">
-                          {(me?.email ?? 'U')
-                            .slice(0, 2)
-                            .toUpperCase()}
-                        </span>
-                      </div>
-                    </div>
+                    </Dropdown>
                   </div>
                 </div>
               </header>

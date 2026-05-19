@@ -58,8 +58,8 @@ function useInvalidateBlockTree() {
   const qc = useQueryClient();
   return () => {
     void qc.invalidateQueries({ queryKey: qk.blocks });
-    void qc.invalidateQueries({ queryKey: ['floors'] });
-    void qc.invalidateQueries({ queryKey: ['apartments'] });
+    void qc.invalidateQueries({ queryKey: qk.floors() });
+    void qc.invalidateQueries({ queryKey: qk.apartments() });
     void qc.invalidateQueries({ queryKey: qk.salesInventory });
   };
 }
@@ -290,7 +290,7 @@ export function useApartmentMutations() {
 export function useClientMutations() {
   const qc = useQueryClient();
   const inv = () => {
-    void qc.invalidateQueries({ queryKey: ['clients'] });
+    void qc.invalidateQueries({ queryKey: qk.clients() });
   };
   const create = useMutation({
     mutationFn: ({

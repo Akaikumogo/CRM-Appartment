@@ -9,11 +9,29 @@ export type SessionUser = {
   effectivePermissions?: string[];
 };
 
+/** JWT payload exp field decode (no crypto verify — just expiry check). */
+function isTokenExpired(token: string): boolean {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    const payload = JSON.parse(atob(parts[1])) as { exp?: number };
+    if (!payload.exp) return false;
+    return Date.now() / 1000 > payload.exp;
+  } catch {
+    return true;
+  }
+}
+
 export function getSessionUser(): SessionUser | null {
-  const raw = localStorage.getItem('user');
-  if (!raw) {
+  const token = localStorage.getItem('token');
+  if (token && isTokenExpired(token)) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('isLoggedIn');
     return null;
   }
+  const raw = localStorage.getItem('user');
+  if (!raw) return null;
   try {
     return JSON.parse(raw) as SessionUser;
   } catch {

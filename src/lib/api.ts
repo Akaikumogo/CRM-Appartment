@@ -1,10 +1,14 @@
 import axios from 'axios';
 
-// const baseURL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
-const baseURL =
-  import.meta.env.VITE_API_URL ?? 'https://crm-pro-backend.akaikumogo.uz';
+const baseURL = import.meta.env.VITE_API_URL;
+if (!baseURL && import.meta.env.PROD) {
+  console.error('[api] VITE_API_URL muhit o\'zgaruvchisi o\'rnatilmagan!');
+}
 
-export const api = axios.create({ baseURL });
+export const api = axios.create({
+  baseURL: baseURL ?? 'http://localhost:3000',
+  timeout: 30_000,
+});
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');

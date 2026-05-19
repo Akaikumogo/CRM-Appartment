@@ -11,7 +11,8 @@ import {
   Phone,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  KeyRound,
 } from 'lucide-react';
 import {
   Card,
@@ -39,8 +40,14 @@ import {
   BulkDeleteConfirmModal,
   type BulkDeleteChoice,
 } from '@/components/BulkDeleteConfirmModal';
-import { useUserMutations, useUsersQuery } from '@/hooks/api/crmHooks';
+import {
+  useBranchesOrgQuery,
+  useOrganizationsQuery,
+  useUserMutations,
+  useUsersQuery,
+} from '@/hooks/api/crmHooks';
 import { getSessionUser } from '@/lib/sessionUser';
+import { adminChangeUserPassword } from '@/api/users';
 
 const { Title, Text } = Typography;
 const { Search: AntSearch } = Input;
@@ -96,6 +103,12 @@ export default function WorkersPage() {
   const { data: usersRaw = [], isLoading: loadingUsers } = useUsersQuery();
   const { create, remove, bulkRemove } = useUserMutations();
 
+  const isSuperadmin = me?.role === 'superadmin';
+  const { data: organizations = [] } = useOrganizationsQuery(isSuperadmin);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | undefined>(undefined);
+  const targetOrgId = isSuperadmin ? selectedOrgId : (me?.organizationId ?? undefined);
+  const { data: branches = [] } = useBranchesOrgQuery(targetOrgId, !!targetOrgId);
+
   const workers = useMemo(
     () => usersRaw.map(mapApiUser),
     [usersRaw],
@@ -111,6 +124,8 @@ export default function WorkersPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [form] = Form.useForm();
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [changePassTarget, setChangePassTarget] = useState<WorkerDto | null>(null);
+  const [changePassForm] = Form.useForm();
 
   // Filter workers
   useEffect(() => {
@@ -191,6 +206,18 @@ export default function WorkersPage() {
         }
       },
     });
+  };
+
+  const handleAdminChangePassword = async (values: { newPassword: string }) => {
+    if (!changePassTarget) return;
+    try {
+      await adminChangeUserPassword(changePassTarget.id, values.newPassword);
+      message.success('Parol muvaffaqiyatli yangilandi');
+      setChangePassTarget(null);
+      changePassForm.resetFields();
+    } catch {
+      message.error('Parolni o\'zgartirishda xatolik');
+    }
   };
 
   const onEditUser = (record: WorkerDto) => {
@@ -301,6 +328,11 @@ export default function WorkersPage() {
       title: 'Amallar',
       key: 'actions',
       render: (record: WorkerDto) => {
+        const canChangePass =
+          (me?.role === 'superadmin' || me?.role === 'org_admin') &&
+          record.role !== 'superadmin' &&
+          record.id !== me?.id;
+
         const items: MenuProps['items'] = [
           {
             key: 'view',
@@ -318,6 +350,19 @@ export default function WorkersPage() {
                   label: 'Ruxsatlar',
                   icon: <Edit size={14} />,
                   onClick: () => onEditUser(record),
+                } as const,
+              ]
+            : []),
+          ...(canChangePass
+            ? [
+                {
+                  key: 'change-password',
+                  label: 'Parol o\'zgartirish',
+                  icon: <KeyRound size={14} />,
+                  onClick: () => {
+                    setChangePassTarget(record);
+                    changePassForm.resetFields();
+                  },
                 } as const,
               ]
             : []),
@@ -347,8 +392,8 @@ export default function WorkersPage() {
 
   const handleAddWorker = async (values: any) => {
     try {
-      if (values.role === 'staff' && !values.branchId) {
-        message.error('Staff uchun filial UUID kiriting');
+      if (values.role === ‘staff’ && !values.branchId) {
+        message.error(‘Staff uchun filial tanlang’);
         return;
       }
       await create.mutateAsync({
@@ -356,15 +401,15 @@ export default function WorkersPage() {
         password: values.password,
         role: values.role,
         fullName: values.fullName,
-        organizationId: me?.role === 'superadmin' ? values.organizationId : undefined,
-        branchId:
-          values.role === 'staff' ? values.branchId : undefined,
+        organizationId: isSuperadmin ? values.organizationId : undefined,
+        branchId: values.role === ‘staff’ ? values.branchId : undefined,
       });
       setIsAddModalVisible(false);
       form.resetFields();
-      message.success("Ishchi muvaffaqiyatli qo'shildi!");
+      setSelectedOrgId(undefined);
+      message.success("Ishchi muvaffaqiyatli qo’shildi!");
     } catch {
-      message.error('Qo‘shib bo‘lmadi (maydonlar / ruxsat)');
+      message.error("Qo’shib bo’lmadi. Maydonlarni tekshiring.");
     }
   };
 
@@ -626,18 +671,56 @@ export default function WorkersPage() {
               <Option value="org_admin">org_admin</Option>
             </Select>
           </Form.Item>
-          {me?.role === 'superadmin' && (
+          {isSuperadmin && (
             <Form.Item
               name="organizationId"
-              label="Tashkilot UUID"
-              rules={[{ required: true }]}
+              label="Tashkilot"
+              rules={[{ required: true, message: 'Tashkilotni tanlang' }]}
             >
-              <Input placeholder="org id" />
+              <Select
+                showSearch
+                placeholder="Tashkilotni tanlang"
+                optionFilterProp="label"
+                onChange={(val) => {
+                  setSelectedOrgId(val as string);
+                  form.setFieldValue('branchId', undefined);
+                }}
+                options={organizations.map((o: any) => ({
+                  value: o.id,
+                  label: o.name ?? o.id,
+                }))}
+              />
             </Form.Item>
           )}
-          {(me?.role === 'superadmin' || me?.role === 'org_admin') && (
-            <Form.Item name="branchId" label="Filial UUID (staff uchun)">
-              <Input placeholder="branch id" />
+          {(isSuperadmin || me?.role === 'org_admin') && (
+            <Form.Item
+              noStyle
+              shouldUpdate={(prev, cur) => prev.role !== cur.role}
+            >
+              {({ getFieldValue }) =>
+                getFieldValue('role') === 'staff' ? (
+                  <Form.Item
+                    name="branchId"
+                    label="Filial"
+                    rules={[{ required: true, message: 'Filialni tanlang' }]}
+                  >
+                    <Select
+                      showSearch
+                      placeholder={
+                        isSuperadmin && !targetOrgId
+                          ? 'Avval tashkilot tanlang'
+                          : 'Filialni tanlang'
+                      }
+                      disabled={isSuperadmin && !targetOrgId}
+                      optionFilterProp="label"
+                      options={branches.map((b: any) => ({
+                        value: b.id,
+                        label: b.name ?? b.id,
+                      }))}
+                    />
+                  </Form.Item>
+                ) : null
+              }
             </Form.Item>
           )}
         </Form>
@@ -745,6 +828,45 @@ export default function WorkersPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Admin: Parol o'zgartirish modal */}
+      <Modal
+        title={`Parol o'zgartirish — ${changePassTarget?.fullName ?? ''}`}
+        open={!!changePassTarget}
+        onCancel={() => { setChangePassTarget(null); changePassForm.resetFields(); }}
+        onOk={() => changePassForm.submit()}
+        okText="Saqlash"
+        cancelText="Bekor qilish"
+        okButtonProps={{ style: { backgroundColor: '#6bd2bc', border: 'none' } }}
+      >
+        <Form form={changePassForm} layout="vertical" onFinish={handleAdminChangePassword}>
+          <Form.Item
+            name="newPassword"
+            label="Yangi parol"
+            rules={[{ required: true, min: 8, message: 'Kamida 8 belgi kiriting' }]}
+          >
+            <Input.Password placeholder="Yangi parol (kamida 8 belgi)" />
+          </Form.Item>
+          <Form.Item
+            name="confirmPassword"
+            label="Parolni tasdiqlang"
+            dependencies={['newPassword']}
+            rules={[
+              { required: true },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('newPassword') === value) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error('Parollar mos kelmadi'));
+                },
+              }),
+            ]}
+          >
+            <Input.Password placeholder="Parolni qayta kiriting" />
+          </Form.Item>
+        </Form>
       </Modal>
 
       <BulkDeleteConfirmModal

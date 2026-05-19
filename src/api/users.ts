@@ -40,3 +40,37 @@ export async function patchUserPermissions(id: string, permissions: string[]) {
   });
   return data;
 }
+
+/** Admin istalgan foydalanuvchining parolini o'zgartiradi */
+export async function adminChangeUserPassword(id: string, newPassword: string) {
+  const { data } = await api.patch<{ success: boolean }>(`/users/${id}/password`, {
+    newPassword,
+  });
+  return data;
+}
+
+/** Foydalanuvchi o'z parolini eski parol orqali o'zgartiradi */
+export async function changeMyPassword(oldPassword: string, newPassword: string) {
+  const { data } = await api.patch<{ success: boolean }>('/auth/change-password', {
+    oldPassword,
+    newPassword,
+  });
+  return data;
+}
+
+/** Foydalanuvchi parolini tiklash so'rovini superadminga yuboradi */
+export async function requestPasswordReset() {
+  const { data } = await api.post<{ success: boolean; message: string }>(
+    '/auth/request-password-reset',
+  );
+  return data;
+}
+
+/** Superadmin parol tiklash so'rovini tasdiqlaydi */
+export async function approvePasswordReset(notificationId: string, newPassword: string) {
+  const { data } = await api.post<{ success: boolean; message: string }>(
+    `/auth/approve-password-reset/${notificationId}`,
+    { newPassword },
+  );
+  return data;
+}

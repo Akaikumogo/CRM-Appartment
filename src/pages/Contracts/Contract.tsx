@@ -49,6 +49,7 @@ import {
   useUsersQuery,
 } from '@/hooks/api/crmHooks';
 import { getSessionUser } from '@/lib/sessionUser';
+import type { ContractRow } from '@/api/contracts';
 
 const { Title, Text } = Typography;
 const { Search: AntSearch } = Input;
@@ -77,26 +78,7 @@ export type ContractDto = {
   progress: number;
 };
 
-type ApiContractRow = {
-  id: string;
-  apartmentId: string;
-  clientId: string;
-  sellerId?: string | null;
-  contractDate: string;
-  createdAt: string;
-  updatedAt: string;
-  organizationId?: string;
-  amount: number;
-  status?: string;
-  paymentStatus?: string;
-  progressPercent?: number;
-  client?: { fullName?: string; phone?: string };
-  seller?: { fullName?: string; email?: string };
-  apartment?: {
-    number?: string | number;
-    floor?: { level?: number; block?: { name?: string; code?: string } };
-  };
-};
+type ApiContractRow = ContractRow;
 
 function coerceContractStatus(s: string | undefined): ContractDto['status'] {
   if (
