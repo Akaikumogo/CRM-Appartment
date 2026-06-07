@@ -118,8 +118,8 @@ function mapApiContract(c: ApiContractRow): ContractDto {
     floorNumber: apt?.floor?.level ?? 0,
     sellerName: c.seller?.fullName || c.seller?.email || '—',
     contractAmount: Number(c.amount),
-    status: coerceContractStatus(c.status),
-    paymentStatus: coercePaymentStatus(c.paymentStatus),
+    status: coerceContractStatus(c.status ?? undefined),
+    paymentStatus: coercePaymentStatus(c.paymentStatus ?? undefined),
     progress: c.progressPercent ?? 0,
   };
 }

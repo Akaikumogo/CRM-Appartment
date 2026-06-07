@@ -392,8 +392,8 @@ export default function WorkersPage() {
 
   const handleAddWorker = async (values: any) => {
     try {
-      if (values.role === ‘staff’ && !values.branchId) {
-        message.error(‘Staff uchun filial tanlang’);
+      if (values.role === 'staff' && !values.branchId) {
+        message.error('Staff uchun filial tanlang');
         return;
       }
       await create.mutateAsync({
@@ -402,7 +402,7 @@ export default function WorkersPage() {
         role: values.role,
         fullName: values.fullName,
         organizationId: isSuperadmin ? values.organizationId : undefined,
-        branchId: values.role === ‘staff’ ? values.branchId : undefined,
+        branchId: values.role === 'staff' ? values.branchId : undefined,
       });
       setIsAddModalVisible(false);
       form.resetFields();

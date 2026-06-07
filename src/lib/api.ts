@@ -1,12 +1,8 @@
-import axios from 'axios';
-
-const baseURL = import.meta.env.VITE_API_URL;
-if (!baseURL && import.meta.env.PROD) {
-  console.error('[api] VITE_API_URL muhit o\'zgaruvchisi o\'rnatilmagan!');
-}
+import axios, { type AxiosError } from 'axios';
+import { env } from './env';
 
 export const api = axios.create({
-  baseURL: baseURL ?? 'http://localhost:3000',
+  baseURL: env.VITE_API_URL,
   timeout: 30_000,
 });
 
@@ -18,14 +14,16 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+interface ApiErrorBody {
+  code?: string;
+  message?: string | string[];
+  supportPhone?: string;
+  requestId?: string;
+}
+
 api.interceptors.response.use(
   (res) => res,
-  (err: {
-    response?: {
-      status?: number;
-      data?: { code?: string; message?: string; supportPhone?: string };
-    };
-  }) => {
+  (err: AxiosError<ApiErrorBody>) => {
     const status = err.response?.status;
     const data = err.response?.data;
     if (
@@ -51,3 +49,16 @@ api.interceptors.response.use(
     return Promise.reject(err);
   }
 );
+
+export function getApiErrorMessage(err: unknown, fallback = 'Xatolik yuz berdi'): string {
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as ApiErrorBody | undefined;
+    if (Array.isArray(data?.message)) return data.message.join(', ');
+    if (typeof data?.message === 'string') return data.message;
+    if (err.code === 'ECONNABORTED') return 'So‘rov vaqti tugadi';
+    if (err.code === 'ERR_NETWORK') return 'Tarmoq xatosi, internetni tekshiring';
+    return err.message || fallback;
+  }
+  if (err instanceof Error) return err.message || fallback;
+  return fallback;
+}

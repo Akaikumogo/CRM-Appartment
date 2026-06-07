@@ -1,4 +1,4 @@
-import { lazy, type JSX } from 'react';
+import { lazy, Suspense, type JSX } from 'react';
 import { Navigate, type RouteObject } from 'react-router-dom';
 import Navigator from './Providers/Navigator';
 import NotFoundPage from './pages/NotFounds/NotFoundPage';
@@ -7,6 +7,8 @@ import DashboardLayout from './Layout/Layout';
 import SuperAdminLayout from './Layout/SuperAdminLayout';
 
 import AnimateWrapper from './components/AnimateWrapper';
+import ErrorBoundary from './components/ErrorBoundary';
+import RouteFallback from './components/RouteFallback';
 
 const LoginPage = lazy(() => import('./pages/Login/Login'));
 const HomePage = lazy(() => import('./pages/Home'));
@@ -36,9 +38,13 @@ const withSuspense = (
   Component: React.LazyExoticComponent<() => JSX.Element>
 ) => {
   return (
-    <AnimateWrapper>
-      <Component />
-    </AnimateWrapper>
+    <ErrorBoundary>
+      <Suspense fallback={<RouteFallback />}>
+        <AnimateWrapper>
+          <Component />
+        </AnimateWrapper>
+      </Suspense>
+    </ErrorBoundary>
   );
 };
 export const routes: RouteObject[] = [

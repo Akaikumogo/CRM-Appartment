@@ -10,6 +10,28 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  plugins: [react(), tailwindcss()]
+  plugins: [react(), tailwindcss()],
+  build: {
+    target: 'es2020',
+    sourcemap: false,
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          antd: ['antd', '@ant-design/icons'],
+          charts: ['recharts'],
+          motion: ['motion', 'framer-motion'],
+          query: ['@tanstack/react-query', 'axios', 'zod'],
+        },
+      },
+    },
+  },
+  server: {
+    port: 5173,
+    strictPort: false,
+  },
+  preview: {
+    port: 4173,
+  },
 });
-
