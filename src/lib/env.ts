@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 const schema = z.object({
-  VITE_API_URL: z.string().url().default('http://localhost:3000'),
+  VITE_API_URL: z.string().url().default('https://crm-pro-backend.akaikumogo.uz'),
   VITE_SHOWROOM_URL: z.string().url().optional(),
   VITE_MQTT_TOPIC_HINT: z.string().optional(),
   VITE_SUPPORT_PHONE: z.string().optional(),
@@ -25,7 +25,7 @@ function resolveEnv(): AppEnv {
       ...import.meta.env,
       VITE_API_URL:
         (import.meta.env.VITE_API_URL as string | undefined) ??
-        'http://localhost:3000',
+        'https://crm-pro-backend.akaikumogo.uz',
     });
   }
   return parsed.data;
