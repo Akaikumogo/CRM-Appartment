@@ -1,12 +1,11 @@
 import { io, type Socket } from 'socket.io-client';
-
-const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+import { env } from './env';
 
 export function connectCrmRealtime(
   branchId: string,
   token: string,
 ): Socket {
-  return io(`${apiBase}/realtime`, {
+  return io(`${env.VITE_API_URL}/realtime`, {
     path: '/socket.io',
     query: { branchId },
     auth: { token },
